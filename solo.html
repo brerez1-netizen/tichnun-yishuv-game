@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>תכנון יישוב - תרגול אישי</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #f0d5b7;
+    --espresso: #321a10;
+    --espresso-light: #4f2b1b;
+    --academy: #35465a;
+    --good: #3ecf6e;
+    --bad: #e05252;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Rubik', sans-serif; background: var(--espresso); color: var(--cream); }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; }
+  h1 { font-weight: 900; font-size: 1.5rem; margin: 0 0 4px; text-align: center; }
+  .subtitle { text-align: center; color: #d8c0a8; font-size: 0.9rem; margin: 0 0 20px; }
+
+  .card { background: var(--espresso-light); border: 2px solid #6b4530; border-radius: 16px; padding: 18px; margin-bottom: 16px; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .legend .chip { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; padding: 5px 10px; border-radius: 20px; background: rgba(255,255,255,0.06); }
+  .legend .swatch { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+
+  .board-wrap { overflow-x: auto; }
+  .board {
+    display: grid;
+    gap: 3px;
+    margin: 0 auto;
+    max-width: 700px;
+  }
+  .cell {
+    aspect-ratio: 1;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    border: 2px solid transparent;
+    transition: transform 0.1s;
+    background: #3a2416;
+    color: #9c8266;
+  }
+  .cell:hover { transform: scale(1.06); z-index: 2; }
+  .cell.selected { border-color: var(--cream); box-shadow: 0 0 0 2px var(--cream); }
+  .cell.natural { background: repeating-linear-gradient(45deg, #2f4a37, #2f4a37 4px, #24392b 4px, #24392b 8px); color: #a9c9b3; cursor: not-allowed; }
+  .cell.street { background: #5b5b5b; color: #ddd; }
+  .cell.street.main { background: #7a7a7a; font-weight: 900; }
+  .cell.plot.empty { background: repeating-linear-gradient(45deg, #4a3120, #4a3120 5px, #40291a 5px, #40291a 10px); }
+  .cell.setback::after { content: ''; position: absolute; }
+  .cell.violation { box-shadow: 0 0 0 3px var(--bad); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 3px var(--bad); } 50% { box-shadow: 0 0 0 5px var(--bad); } }
+  .cell-inner-setback { width: 62%; height: 62%; border-radius: 3px; background: rgba(0,0,0,0.28); display:flex; align-items:center; justify-content:center; }
+
+  .panel-title { font-weight: 900; margin: 0 0 10px; font-size: 1.05rem; }
+  .land-use-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+  .lu-btn { border: 2px solid transparent; border-radius: 10px; padding: 10px 14px; font-family: inherit; font-weight: 700; cursor: pointer; font-size: 0.85rem; }
+  .lu-btn.active { border-color: var(--cream); }
+  .lu-btn.erase { background: transparent; border: 2px dashed #d8c0a8; color: #d8c0a8; }
+
+  .setback-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 0.9rem; }
+
+  .street-toggle { display: flex; gap: 8px; }
+  .street-toggle button { flex: 1; padding: 10px; border-radius: 10px; border: 2px solid #6b4530; background: transparent; color: var(--cream); font-family: inherit; font-weight: 700; cursor: pointer; }
+  .street-toggle button.active { background: var(--academy); border-color: var(--academy); }
+
+  .controls { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 4px; }
+  button.action { font-family: inherit; font-weight: 700; font-size: 1rem; border: none; border-radius: 12px; padding: 13px 28px; cursor: pointer; background: linear-gradient(135deg, var(--cream), #d8b98e); color: var(--espresso); }
+  button.ghost { background: transparent; border: 2px solid #d8c0a8; color: #d8c0a8; }
+
+  .result-row { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border-radius: 10px; margin-bottom: 10px; }
+  .result-row.ok { background: rgba(62,207,110,0.12); }
+  .result-row.bad { background: rgba(224,82,82,0.14); }
+  .result-icon { font-size: 1.3rem; }
+  .result-title { font-weight: 900; margin-bottom: 2px; }
+  .result-msg { font-size: 0.9rem; color: #e8dcca; }
+
+  .empty-note { color: #d8c0a8; font-size: 0.85rem; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🏘️ תכנון יישוב</h1>
+  <p class="subtitle">תרגילי תכנון סכמטי - לא מייצג מקום אמיתי. סמנו ייעודי קרקע על המגרשים, החליטו על רוחב רחובות, ובדקו את התכנון.</p>
+
+  <div class="card">
+    <div class="legend" id="legendBar"></div>
+  </div>
+
+  <div class="card board-wrap">
+    <div class="board" id="board"></div>
+  </div>
+
+  <div class="card" id="detailPanel">
+    <p class="empty-note">לחצו על מגרש או רחוב ברשת כדי לערוך אותו.</p>
+  </div>
+
+  <div class="controls">
+    <button class="action" onclick="evaluate()">✅ בדקו תכנון</button>
+    <button class="action ghost" onclick="if(confirm('לאפס את כל התכנון?')) resetPlan();">איפוס</button>
+  </div>
+
+  <div class="card" id="resultsPanel" style="display:none;"></div>
+</div>
+
+<script src="js/gameData.js"></script>
+<script>
+const STORAGE_KEY = 'tichnunYishuvPlan_v1';
+const gd = window.gameData;
+let cells = gd.generateGrid();
+
+function loadSaved() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    cells.forEach(c => {
+      if (saved[c.id]) Object.assign(c, saved[c.id]);
+    });
+  } catch (e) { /* התעלמות מנתונים פגומים */ }
+}
+
+function save() {
+  const data = {};
+  cells.forEach(c => {
+    data[c.id] = { landUse: c.landUse, setback: c.setback, streetWidth: c.streetWidth };
+  });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function luByKey(key) {
+  return gd.LAND_USES.find(l => l.key === key);
+}
+
+let selectedId = null;
+
+function renderLegend() {
+  const bar = document.getElementById('legendBar');
+  bar.innerHTML = gd.LAND_USES.map(l =>
+    `<div class="chip"><span class="swatch" style="background:${l.color}"></span>${l.label}</div>`
+  ).join('') + '<div class="chip"><span class="swatch" style="background:#5b5b5b"></span>רחוב</div><div class="chip"><span class="swatch" style="background:#2f4a37"></span>שטח שמור</div>';
+}
+
+function renderBoard() {
+  const board = document.getElementById('board');
+  board.style.gridTemplateColumns = `repeat(${gd.COLS}, 1fr)`;
+  board.innerHTML = '';
+  cells.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'cell ' + c.type;
+    div.dataset.id = c.id;
+    if (c.type === 'street' && c.streetWidth === 'main') div.classList.add('main');
+    if (c.type === 'plot') {
+      if (c.landUse) {
+        const lu = luByKey(c.landUse);
+        div.style.background = lu.color;
+        div.style.color = lu.textColor;
+        if (c.setback) {
+          div.innerHTML = '<div class="cell-inner-setback"></div>';
+        }
+      } else {
+        div.classList.add('empty');
+      }
+    }
+    if (c.id === selectedId) div.classList.add('selected');
+    div.onclick = () => selectCell(c.id);
+    board.appendChild(div);
+  });
+}
+
+function selectCell(id) {
+  selectedId = id;
+  renderBoard();
+  renderDetailPanel();
+}
+
+function renderDetailPanel() {
+  const panel = document.getElementById('detailPanel');
+  if (!selectedId) {
+    panel.innerHTML = '<p class="empty-note">לחצו על מגרש או רחוב ברשת כדי לערוך אותו.</p>';
+    return;
+  }
+  const c = cells.find(x => x.id === selectedId);
+  if (c.type === 'natural') {
+    panel.innerHTML = '<p class="panel-title">שטח שמור</p><p class="empty-note">שטח טבעי/מדרון - לא ניתן לבנייה, חלק מהאילוצים הנתונים של התוכנית.</p>';
+    return;
+  }
+  if (c.type === 'street') {
+    panel.innerHTML = `
+      <p class="panel-title">רוחב הרחוב</p>
+      <div class="street-toggle">
+        <button class="${c.streetWidth === 'local' ? 'active' : ''}" onclick="setStreetWidth('local')">רחוב מקומי</button>
+        <button class="${c.streetWidth === 'main' ? 'active' : ''}" onclick="setStreetWidth('main')">רחוב ראשי</button>
+      </div>
+    `;
+    return;
+  }
+  // plot
+  panel.innerHTML = `
+    <p class="panel-title">ייעוד המגרש</p>
+    <div class="land-use-buttons" id="luButtons"></div>
+    <div class="setback-row">
+      <input type="checkbox" id="setbackCheck" ${c.setback ? 'checked' : ''} onchange="setSetback(this.checked)" />
+      <label for="setbackCheck">נסיגה מקו הרחוב (מרחק בין קו הבניין לגבול המגרש)</label>
+    </div>
+  `;
+  const luButtons = document.getElementById('luButtons');
+  gd.LAND_USES.forEach(l => {
+    const btn = document.createElement('button');
+    btn.className = 'lu-btn' + (c.landUse === l.key ? ' active' : '');
+    btn.style.background = l.color;
+    btn.style.color = l.textColor;
+    btn.innerText = l.label;
+    btn.onclick = () => setLandUse(l.key);
+    luButtons.appendChild(btn);
+  });
+  const eraseBtn = document.createElement('button');
+  eraseBtn.className = 'lu-btn erase';
+  eraseBtn.innerText = 'נקה מגרש';
+  eraseBtn.onclick = () => setLandUse(null);
+  luButtons.appendChild(eraseBtn);
+}
+
+function setLandUse(key) {
+  const c = cells.find(x => x.id === selectedId);
+  c.landUse = key;
+  if (!key) c.setback = false;
+  save();
+  renderBoard();
+  renderDetailPanel();
+}
+
+function setSetback(val) {
+  const c = cells.find(x => x.id === selectedId);
+  c.setback = val;
+  save();
+  renderBoard();
+}
+
+function setStreetWidth(width) {
+  const c = cells.find(x => x.id === selectedId);
+  c.streetWidth = width;
+  save();
+  renderBoard();
+  renderDetailPanel();
+}
+
+function resetPlan() {
+  localStorage.removeItem(STORAGE_KEY);
+  cells = gd.generateGrid();
+  selectedId = null;
+  document.getElementById('resultsPanel').style.display = 'none';
+  renderBoard();
+  renderDetailPanel();
+}
+
+function evaluate() {
+  const results = gd.RULES.map(rule => rule.check(cells));
+  const violatingIds = new Set(results.flatMap(r => r.violatingCellIds));
+
+  document.querySelectorAll('.cell').forEach(el => {
+    el.classList.toggle('violation', violatingIds.has(el.dataset.id));
+  });
+
+  const panel = document.getElementById('resultsPanel');
+  panel.style.display = 'block';
+  const unassigned = cells.filter(c => c.type === 'plot' && !c.landUse).length;
+  panel.innerHTML =
+    '<p class="panel-title">תוצאות הבדיקה</p>' +
+    gd.RULES.map((rule, i) => {
+      const r = results[i];
+      return `<div class="result-row ${r.ok ? 'ok' : 'bad'}">
+        <div class="result-icon">${r.ok ? '✅' : '⚠️'}</div>
+        <div><div class="result-title">${rule.title}</div><div class="result-msg">${r.message}</div></div>
+      </div>`;
+    }).join('') +
+    (unassigned > 0 ? `<p class="empty-note">עדיין נותרו ${unassigned} מגרשים ריקים ללא ייעוד.</p>` : '');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+loadSaved();
+renderLegend();
+renderBoard();
+renderDetailPanel();
+</script>
+</body>
+</html>
