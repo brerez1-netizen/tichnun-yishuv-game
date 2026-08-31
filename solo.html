@@ -17,59 +17,52 @@
   }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: 'Rubik', sans-serif; background: var(--espresso); color: var(--cream); }
-  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; }
+  .wrap { max-width: 1150px; margin: 0 auto; padding: 20px 16px 60px; }
   h1 { font-weight: 900; font-size: 1.5rem; margin: 0 0 4px; text-align: center; }
-  .subtitle { text-align: center; color: #d8c0a8; font-size: 0.9rem; margin: 0 0 20px; }
+  .subtitle { text-align: center; color: #d8c0a8; font-size: 0.88rem; margin: 0 0 20px; line-height: 1.5; }
 
   .card { background: var(--espresso-light); border: 2px solid #6b4530; border-radius: 16px; padding: 18px; margin-bottom: 16px; }
 
-  .legend { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
-  .legend .chip { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; padding: 5px 10px; border-radius: 20px; background: rgba(255,255,255,0.06); }
-  .legend .swatch { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+  .legend-group { margin-bottom: 10px; }
+  .legend-group-title { font-size: 0.75rem; color: #c9ae8d; font-weight: 700; margin-bottom: 6px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; }
+  .legend .chip { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; padding: 5px 10px; border-radius: 20px; background: rgba(255,255,255,0.06); }
+  .legend .swatch { width: 14px; height: 14px; border-radius: 4px; display: inline-block; flex-shrink: 0; }
+  .legend .swatch.line { width: 20px; height: 4px; border-radius: 2px; }
+  .legend .swatch.dashed { background-image: repeating-linear-gradient(90deg, #5da36f 0 4px, transparent 4px 8px); background-color: transparent !important; height: 4px; }
 
   .board-wrap { overflow-x: auto; }
-  .board {
-    display: grid;
-    gap: 3px;
-    margin: 0 auto;
-    max-width: 700px;
-  }
-  .cell {
-    aspect-ratio: 1;
-    border-radius: 4px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.65rem;
-    font-weight: 700;
-    border: 2px solid transparent;
-    transition: transform 0.1s;
-    background: #3a2416;
-    color: #9c8266;
-  }
-  .cell:hover { transform: scale(1.06); z-index: 2; }
-  .cell.selected { border-color: var(--cream); box-shadow: 0 0 0 2px var(--cream); }
-  .cell.natural { background: repeating-linear-gradient(45deg, #2f4a37, #2f4a37 4px, #24392b 4px, #24392b 8px); color: #a9c9b3; cursor: not-allowed; }
-  .cell.street { background: #5b5b5b; color: #ddd; }
-  .cell.street.main { background: #7a7a7a; font-weight: 900; }
-  .cell.plot.empty { background: repeating-linear-gradient(45deg, #4a3120, #4a3120 5px, #40291a 5px, #40291a 10px); }
-  .cell.setback::after { content: ''; position: absolute; }
-  .cell.violation { box-shadow: 0 0 0 3px var(--bad); animation: pulse 1s infinite; }
-  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 3px var(--bad); } 50% { box-shadow: 0 0 0 5px var(--bad); } }
-  .cell-inner-setback { width: 62%; height: 62%; border-radius: 3px; background: rgba(0,0,0,0.28); display:flex; align-items:center; justify-content:center; }
+  svg#board { width: 100%; height: auto; display: block; }
+
+  .plot { cursor: pointer; stroke: #2b190f; stroke-width: 1.5; }
+  .plot.empty { fill: url(#emptyHatch); }
+  .plot.selected { stroke: var(--cream); stroke-width: 3.5; }
+  .plot.violation { stroke: var(--bad); stroke-width: 4; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { stroke-width: 4; } 50% { stroke-width: 6; } }
+  .footprint { fill: rgba(0,0,0,0.32); pointer-events: none; }
+  .street-line { fill: none; stroke-linecap: round; stroke-linejoin: round; cursor: pointer; }
+  .street-line.selected { filter: drop-shadow(0 0 3px var(--cream)); }
+  .street-hit { fill: none; stroke: transparent; stroke-linecap: round; cursor: pointer; pointer-events: stroke; }
+  .park { fill: #4f9f63; opacity: 0.85; stroke: #386e46; stroke-width: 1.5; }
 
   .panel-title { font-weight: 900; margin: 0 0 10px; font-size: 1.05rem; }
-  .land-use-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+  .btn-group { display: flex; flex-wrap: wrap; gap: 8px; }
   .lu-btn { border: 2px solid transparent; border-radius: 10px; padding: 10px 14px; font-family: inherit; font-weight: 700; cursor: pointer; font-size: 0.85rem; }
   .lu-btn.active { border-color: var(--cream); }
   .lu-btn.erase { background: transparent; border: 2px dashed #d8c0a8; color: #d8c0a8; }
+  .lu-btn.add-custom { background: transparent; border: 2px dashed #6b4530; color: #d8c0a8; }
 
-  .setback-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 0.9rem; }
+  .bl-row { display: flex; gap: 8px; margin-top: 14px; }
+  .bl-row button { flex: 1; padding: 10px; border-radius: 10px; border: 2px solid #6b4530; background: transparent; color: var(--cream); font-family: inherit; font-weight: 700; cursor: pointer; font-size: 0.85rem; }
+  .bl-row button.active { background: var(--academy); border-color: var(--academy); }
 
   .street-toggle { display: flex; gap: 8px; }
-  .street-toggle button { flex: 1; padding: 10px; border-radius: 10px; border: 2px solid #6b4530; background: transparent; color: var(--cream); font-family: inherit; font-weight: 700; cursor: pointer; }
+  .street-toggle button { flex: 1; padding: 10px; border-radius: 10px; border: 2px solid #6b4530; background: transparent; color: var(--cream); font-family: inherit; font-weight: 700; cursor: pointer; font-size: 0.85rem; }
   .street-toggle button.active { background: var(--academy); border-color: var(--academy); }
+
+  .custom-form { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+  .custom-form input[type="text"] { flex: 1; min-width: 120px; padding: 8px 10px; border-radius: 8px; border: 2px solid #6b4530; font-family: inherit; }
+  .custom-form input[type="color"] { width: 40px; height: 36px; border: none; border-radius: 8px; padding: 0; background: none; }
 
   .controls { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 4px; }
   button.action { font-family: inherit; font-weight: 700; font-size: 1rem; border: none; border-radius: 12px; padding: 13px 28px; cursor: pointer; background: linear-gradient(135deg, var(--cream), #d8b98e); color: var(--espresso); }
@@ -82,24 +75,42 @@
   .result-title { font-weight: 900; margin-bottom: 2px; }
   .result-msg { font-size: 0.9rem; color: #e8dcca; }
 
-  .empty-note { color: #d8c0a8; font-size: 0.85rem; text-align: center; }
+  .empty-note { color: #d8c0a8; font-size: 0.85rem; text-align: center; margin: 0; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>🏘️ תכנון יישוב</h1>
-  <p class="subtitle">תרגילי תכנון סכמטי - לא מייצג מקום אמיתי. סמנו ייעודי קרקע על המגרשים, החליטו על רוחב רחובות, ובדקו את התכנון.</p>
+  <p class="subtitle">רשת רחובות ומגרשים בהשראת תשריט אמיתי - לא מייצג מקום ספציפי. סמנו ייעודי קרקע וקווי בניין על המגרשים, קבעו את סוג כל רחוב, ובדקו את התכנון.</p>
 
   <div class="card">
-    <div class="legend" id="legendBar"></div>
+    <div class="legend-group">
+      <div class="legend-group-title">ייעודי קרקע</div>
+      <div class="legend" id="legendLandUses"></div>
+    </div>
+    <div class="legend-group">
+      <div class="legend-group-title">סוגי רחוב</div>
+      <div class="legend" id="legendStreets"></div>
+    </div>
   </div>
 
   <div class="card board-wrap">
-    <div class="board" id="board"></div>
+    <svg id="board" viewBox="0 0 1000 800" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="emptyHatch" width="10" height="10" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+          <rect width="10" height="10" fill="#4a3120"></rect>
+          <line x1="0" y1="0" x2="0" y2="10" stroke="#5c3d27" stroke-width="4"></line>
+        </pattern>
+      </defs>
+      <g id="parkLayer"></g>
+      <g id="plotsLayer"></g>
+      <g id="footprintsLayer"></g>
+      <g id="streetsLayer"></g>
+    </svg>
   </div>
 
   <div class="card" id="detailPanel">
-    <p class="empty-note">לחצו על מגרש או רחוב ברשת כדי לערוך אותו.</p>
+    <p class="empty-note">לחצו על מגרש או רחוב במפה כדי לערוך אותו.</p>
   </div>
 
   <div class="controls">
@@ -112,164 +123,247 @@
 
 <script src="js/gameData.js"></script>
 <script>
-const STORAGE_KEY = 'tichnunYishuvPlan_v1';
+const STORAGE_KEY = 'tichnunYishuvPlan_v2';
 const gd = window.gameData;
-let cells = gd.generateGrid();
+
+let plots = gd.generatePlots();
+let streetOverrides = {};
+let customLandUses = [];
+let selected = null; // { kind: 'plot'|'street', id }
+
+function allLandUses() { return gd.BASE_LAND_USES.concat(customLandUses); }
+function luByKey(key) { return allLandUses().find((l) => l.key === key); }
+function plotById(id) { return plots.find((p) => p.id === id); }
+function streetById(id) { return gd.STREETS.find((s) => s.id === id); }
 
 function loadSaved() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    cells.forEach(c => {
-      if (saved[c.id]) Object.assign(c, saved[c.id]);
-    });
+    if (saved.customLandUses) customLandUses = saved.customLandUses;
+    if (saved.plots) {
+      plots.forEach((p) => {
+        if (saved.plots[p.id]) Object.assign(p, saved.plots[p.id]);
+      });
+    }
+    if (saved.streetOverrides) streetOverrides = saved.streetOverrides;
   } catch (e) { /* התעלמות מנתונים פגומים */ }
 }
 
 function save() {
-  const data = {};
-  cells.forEach(c => {
-    data[c.id] = { landUse: c.landUse, setback: c.setback, streetWidth: c.streetWidth };
-  });
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  const plotsData = {};
+  plots.forEach((p) => { plotsData[p.id] = { landUse: p.landUse, buildingLine: p.buildingLine }; });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ plots: plotsData, streetOverrides, customLandUses }));
 }
 
-function luByKey(key) {
-  return gd.LAND_USES.find(l => l.key === key);
+function svgEl(tag, attrs) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+  return el;
 }
-
-let selectedId = null;
 
 function renderLegend() {
-  const bar = document.getElementById('legendBar');
-  bar.innerHTML = gd.LAND_USES.map(l =>
-    `<div class="chip"><span class="swatch" style="background:${l.color}"></span>${l.label}</div>`
-  ).join('') + '<div class="chip"><span class="swatch" style="background:#5b5b5b"></span>רחוב</div><div class="chip"><span class="swatch" style="background:#2f4a37"></span>שטח שמור</div>';
+  const luBar = document.getElementById('legendLandUses');
+  luBar.innerHTML = '';
+  allLandUses().forEach((l) => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.innerHTML = `<span class="swatch" style="background:${l.color}"></span>${l.label}`;
+    luBar.appendChild(chip);
+  });
+
+  const stBar = document.getElementById('legendStreets');
+  stBar.innerHTML = gd.STREET_TYPES.map((s) =>
+    `<div class="chip"><span class="swatch line ${s.dashed ? 'dashed' : ''}" style="${s.dashed ? '' : 'background:' + s.color}"></span>${s.label}</div>`
+  ).join('') + '<div class="chip"><span class="swatch" style="background:#4f9f63"></span>שצ"פ קיים (כיכר)</div>';
 }
 
-function renderBoard() {
-  const board = document.getElementById('board');
-  board.style.gridTemplateColumns = `repeat(${gd.COLS}, 1fr)`;
-  board.innerHTML = '';
-  cells.forEach(c => {
-    const div = document.createElement('div');
-    div.className = 'cell ' + c.type;
-    div.dataset.id = c.id;
-    if (c.type === 'street' && c.streetWidth === 'main') div.classList.add('main');
-    if (c.type === 'plot') {
-      if (c.landUse) {
-        const lu = luByKey(c.landUse);
-        div.style.background = lu.color;
-        div.style.color = lu.textColor;
-        if (c.setback) {
-          div.innerHTML = '<div class="cell-inner-setback"></div>';
-        }
-      } else {
-        div.classList.add('empty');
-      }
-    }
-    if (c.id === selectedId) div.classList.add('selected');
-    div.onclick = () => selectCell(c.id);
-    board.appendChild(div);
+function renderStreets() {
+  const layer = document.getElementById('streetsLayer');
+  layer.innerHTML = '';
+  gd.STREETS.forEach((s) => {
+    const type = gd.streetTypeOf(s.id, streetOverrides);
+    const def = gd.STREET_TYPES.find((t) => t.key === type);
+    const d = 'M ' + s.points.map((p) => `${p.x},${p.y}`).join(' L ');
+    const visible = svgEl('path', {
+      d, class: 'street-line' + (selected && selected.kind === 'street' && selected.id === s.id ? ' selected' : ''),
+      stroke: def.color, 'stroke-width': def.width,
+    });
+    if (def.dashed) visible.setAttribute('stroke-dasharray', '10,8');
+    visible.dataset.id = s.id;
+    const hit = svgEl('path', { d, class: 'street-hit', 'stroke-width': Math.max(def.width, 24) });
+    hit.dataset.id = s.id;
+    hit.onclick = () => selectItem('street', s.id);
+    layer.appendChild(visible);
+    layer.appendChild(hit);
   });
 }
 
-function selectCell(id) {
-  selectedId = id;
+function renderPark() {
+  const layer = document.getElementById('parkLayer');
+  layer.innerHTML = '';
+  layer.appendChild(svgEl('polygon', { points: gd.PARK_CENTER_POLYGON.map((p) => `${p.x},${p.y}`).join(' '), class: 'park' }));
+}
+
+function renderPlots(violatingIds) {
+  const layer = document.getElementById('plotsLayer');
+  const fpLayer = document.getElementById('footprintsLayer');
+  layer.innerHTML = '';
+  fpLayer.innerHTML = '';
+  plots.forEach((p) => {
+    const cls = ['plot'];
+    if (!p.landUse) cls.push('empty');
+    if (selected && selected.kind === 'plot' && selected.id === p.id) cls.push('selected');
+    if (violatingIds && violatingIds.has(p.id)) cls.push('violation');
+    const el = svgEl('polygon', { points: p.points.map((pt) => `${pt.x},${pt.y}`).join(' '), class: cls.join(' ') });
+    if (p.landUse) el.setAttribute('fill', luByKey(p.landUse).color);
+    el.dataset.id = p.id;
+    el.onclick = () => selectItem('plot', p.id);
+    layer.appendChild(el);
+
+    const footprint = gd.buildingFootprint(p, streetOverrides);
+    if (footprint) {
+      fpLayer.appendChild(svgEl('polygon', { points: footprint.map((pt) => `${pt.x},${pt.y}`).join(' '), class: 'footprint' }));
+    }
+  });
+}
+
+function renderBoard(violatingIds) {
+  renderStreets();
+  renderPark();
+  renderPlots(violatingIds);
+}
+
+function selectItem(kind, id) {
+  selected = { kind, id };
   renderBoard();
   renderDetailPanel();
 }
 
 function renderDetailPanel() {
   const panel = document.getElementById('detailPanel');
-  if (!selectedId) {
-    panel.innerHTML = '<p class="empty-note">לחצו על מגרש או רחוב ברשת כדי לערוך אותו.</p>';
+  if (!selected) {
+    panel.innerHTML = '<p class="empty-note">לחצו על מגרש או רחוב במפה כדי לערוך אותו.</p>';
     return;
   }
-  const c = cells.find(x => x.id === selectedId);
-  if (c.type === 'natural') {
-    panel.innerHTML = '<p class="panel-title">שטח שמור</p><p class="empty-note">שטח טבעי/מדרון - לא ניתן לבנייה, חלק מהאילוצים הנתונים של התוכנית.</p>';
+  if (selected.kind === 'street') {
+    const s = streetById(selected.id);
+    const currentType = gd.streetTypeOf(s.id, streetOverrides);
+    panel.innerHTML = '<p class="panel-title">סוג הרחוב</p><div class="street-toggle" id="streetTypeButtons"></div>';
+    const box = document.getElementById('streetTypeButtons');
+    gd.STREET_TYPES.forEach((t) => {
+      const btn = document.createElement('button');
+      btn.className = t.key === currentType ? 'active' : '';
+      btn.innerText = t.label;
+      btn.onclick = () => setStreetType(s.id, t.key);
+      box.appendChild(btn);
+    });
     return;
   }
-  if (c.type === 'street') {
-    panel.innerHTML = `
-      <p class="panel-title">רוחב הרחוב</p>
-      <div class="street-toggle">
-        <button class="${c.streetWidth === 'local' ? 'active' : ''}" onclick="setStreetWidth('local')">רחוב מקומי</button>
-        <button class="${c.streetWidth === 'main' ? 'active' : ''}" onclick="setStreetWidth('main')">רחוב ראשי</button>
-      </div>
-    `;
-    return;
-  }
-  // plot
+
+  const p = plotById(selected.id);
   panel.innerHTML = `
     <p class="panel-title">ייעוד המגרש</p>
-    <div class="land-use-buttons" id="luButtons"></div>
-    <div class="setback-row">
-      <input type="checkbox" id="setbackCheck" ${c.setback ? 'checked' : ''} onchange="setSetback(this.checked)" />
-      <label for="setbackCheck">נסיגה מקו הרחוב (מרחק בין קו הבניין לגבול המגרש)</label>
+    <div class="btn-group" id="luButtons"></div>
+    <div id="customForm" style="display:none;" class="custom-form">
+      <input type="text" id="customLabel" placeholder="שם הייעוד" maxlength="24" />
+      <input type="color" id="customColor" value="#c46fd6" />
+      <button class="lu-btn" onclick="addCustomLandUse()">הוספה</button>
     </div>
+    <div id="buildingLineSection"></div>
   `;
   const luButtons = document.getElementById('luButtons');
-  gd.LAND_USES.forEach(l => {
+  allLandUses().forEach((l) => {
     const btn = document.createElement('button');
-    btn.className = 'lu-btn' + (c.landUse === l.key ? ' active' : '');
+    btn.className = 'lu-btn' + (p.landUse === l.key ? ' active' : '');
     btn.style.background = l.color;
     btn.style.color = l.textColor;
     btn.innerText = l.label;
     btn.onclick = () => setLandUse(l.key);
     luButtons.appendChild(btn);
   });
+  const addBtn = document.createElement('button');
+  addBtn.className = 'lu-btn add-custom';
+  addBtn.innerText = '+ הוספת ייעוד';
+  addBtn.onclick = () => { document.getElementById('customForm').style.display = 'flex'; };
+  luButtons.appendChild(addBtn);
   const eraseBtn = document.createElement('button');
   eraseBtn.className = 'lu-btn erase';
   eraseBtn.innerText = 'נקה מגרש';
   eraseBtn.onclick = () => setLandUse(null);
   luButtons.appendChild(eraseBtn);
+
+  const blSection = document.getElementById('buildingLineSection');
+  if (p.landUse) {
+    blSection.innerHTML = '<p class="panel-title" style="margin-top:16px;">קו בניין</p><div class="bl-row" id="blButtons"></div>';
+    const blBox = document.getElementById('blButtons');
+    Object.values(gd.BUILDING_LINE_PRESETS).forEach((preset) => {
+      const btn = document.createElement('button');
+      btn.className = p.buildingLine === preset.key ? 'active' : '';
+      btn.innerText = preset.label;
+      btn.onclick = () => setBuildingLine(preset.key);
+      blBox.appendChild(btn);
+    });
+  }
 }
 
 function setLandUse(key) {
-  const c = cells.find(x => x.id === selectedId);
-  c.landUse = key;
-  if (!key) c.setback = false;
+  const p = plotById(selected.id);
+  p.landUse = key;
+  if (key && !p.buildingLine) p.buildingLine = 'urban';
+  if (!key) p.buildingLine = null;
   save();
   renderBoard();
   renderDetailPanel();
 }
 
-function setSetback(val) {
-  const c = cells.find(x => x.id === selectedId);
-  c.setback = val;
-  save();
-  renderBoard();
-}
-
-function setStreetWidth(width) {
-  const c = cells.find(x => x.id === selectedId);
-  c.streetWidth = width;
+function setBuildingLine(key) {
+  const p = plotById(selected.id);
+  p.buildingLine = key;
   save();
   renderBoard();
   renderDetailPanel();
+}
+
+function setStreetType(streetId, type) {
+  streetOverrides[streetId] = type;
+  save();
+  renderBoard();
+  renderDetailPanel();
+}
+
+function addCustomLandUse() {
+  const label = document.getElementById('customLabel').value.trim();
+  const color = document.getElementById('customColor').value;
+  if (!label) return;
+  const key = 'custom-' + label.replace(/\s+/g, '-') + '-' + Date.now();
+  customLandUses.push({ key, label, color, textColor: '#fff' });
+  document.getElementById('customForm').style.display = 'none';
+  document.getElementById('customLabel').value = '';
+  save();
+  renderLegend();
+  setLandUse(key);
 }
 
 function resetPlan() {
   localStorage.removeItem(STORAGE_KEY);
-  cells = gd.generateGrid();
-  selectedId = null;
+  plots = gd.generatePlots();
+  streetOverrides = {};
+  customLandUses = [];
+  selected = null;
   document.getElementById('resultsPanel').style.display = 'none';
+  renderLegend();
   renderBoard();
   renderDetailPanel();
 }
 
 function evaluate() {
-  const results = gd.RULES.map(rule => rule.check(cells));
-  const violatingIds = new Set(results.flatMap(r => r.violatingCellIds));
-
-  document.querySelectorAll('.cell').forEach(el => {
-    el.classList.toggle('violation', violatingIds.has(el.dataset.id));
-  });
+  const results = gd.RULES.map((rule) => rule.check(plots, streetOverrides));
+  const violatingIds = new Set(results.flatMap((r) => r.violatingIds));
+  renderBoard(violatingIds);
 
   const panel = document.getElementById('resultsPanel');
   panel.style.display = 'block';
-  const unassigned = cells.filter(c => c.type === 'plot' && !c.landUse).length;
+  const unassigned = plots.filter((p) => !p.landUse).length;
   panel.innerHTML =
     '<p class="panel-title">תוצאות הבדיקה</p>' +
     gd.RULES.map((rule, i) => {
