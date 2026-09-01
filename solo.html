@@ -306,7 +306,6 @@ function evaluate() {
 
   const panel = document.getElementById('resultsPanel');
   panel.style.display = 'block';
-  const unassigned = plots.filter((p) => !p.landUse).length;
   panel.innerHTML =
     '<p class="panel-title">תוצאות הבדיקה</p>' +
     gd.RULES.map((rule, i) => {
@@ -315,8 +314,7 @@ function evaluate() {
         <div class="result-icon">${r.ok ? '✅' : '⚠️'}</div>
         <div><div class="result-title">${rule.title}</div><div class="result-msg">${r.message}</div></div>
       </div>`;
-    }).join('') +
-    (unassigned > 0 ? `<p class="empty-note">עדיין נותרו ${unassigned} מגרשים ריקים ללא ייעוד.</p>` : '');
+    }).join('');
   panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
