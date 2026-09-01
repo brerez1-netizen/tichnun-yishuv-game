@@ -65,9 +65,12 @@
   .result-row { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border-radius: 10px; margin-bottom: 10px; }
   .result-row.ok { background: rgba(62,207,110,0.12); }
   .result-row.bad { background: rgba(224,82,82,0.14); }
+  .result-row.insight-ok { background: rgba(90,150,201,0.12); }
+  .result-row.insight-bad { background: rgba(216,159,58,0.14); }
   .result-icon { font-size: 1.3rem; }
   .result-title { font-weight: 900; margin-bottom: 2px; }
   .result-msg { font-size: 0.9rem; color: #e8dcca; }
+  .insights-title { font-weight: 900; margin: 18px 0 10px; font-size: 0.95rem; color: #d8c0a8; }
 
   .empty-note { color: #d8c0a8; font-size: 0.85rem; text-align: center; margin: 0; }
 </style>
@@ -337,6 +340,8 @@ function checkPlan() {
   const violatingIds = new Set(results.flatMap((r) => r.violatingIds));
   renderBoard(violatingIds);
 
+  const insightResults = gd.INSIGHTS.map((rule) => rule.check(plots));
+
   const panel = document.getElementById('resultsPanel');
   panel.style.display = 'block';
   panel.innerHTML =
@@ -345,6 +350,14 @@ function checkPlan() {
       const r = results[i];
       return `<div class="result-row ${r.ok ? 'ok' : 'bad'}">
         <div class="result-icon">${r.ok ? '✅' : '⚠️'}</div>
+        <div><div class="result-title">${rule.title}</div><div class="result-msg">${r.message}</div></div>
+      </div>`;
+    }).join('') +
+    '<p class="insights-title">תובנות תכנוניות - עירוב שימושים ועירוניות</p>' +
+    gd.INSIGHTS.map((rule, i) => {
+      const r = insightResults[i];
+      return `<div class="result-row ${r.ok ? 'insight-ok' : 'insight-bad'}">
+        <div class="result-icon">${r.ok ? '💡' : '🔎'}</div>
         <div><div class="result-title">${rule.title}</div><div class="result-msg">${r.message}</div></div>
       </div>`;
     }).join('');

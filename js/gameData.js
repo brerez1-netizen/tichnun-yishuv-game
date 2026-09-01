@@ -327,6 +327,8 @@ window.gameData = (function () {
     { id: "park8", points: [pt(655.6,152.4), pt(648.4,153.2), pt(642.4,157.2), pt(797.2,187.2), pt(800.3,194.9), pt(808.1,199.9), pt(814.0,233.0), pt(816.0,239.9), pt(822.5,237.4), pt(817.9,218.3), pt(814.4,192.5), pt(811.6,187.0), pt(807.0,182.8), pt(801.1,180.4)], presetLandUse: "shatach-patuach" },
     { id: "park9", points: [pt(825.2,245.8), pt(818.7,248.4), pt(833.0,280.8), pt(855.3,313.7), pt(882.4,341.3), pt(888.3,346.0), pt(884.8,334.7), pt(863.9,313.1), pt(848.2,292.4), pt(835.2,269.9)], presetLandUse: "shatach-patuach" },
     { id: "park10", points: [pt(822.5,237.4), pt(816.0,239.9), pt(818.7,248.4), pt(825.2,245.8)], presetLandUse: "shatach-patuach" },
+    { id: "park11", points: [pt(428.13,256.09), pt(425.69,229.44), pt(410.89,226.59), pt(413.91,260.08), pt(413.92,260.08), pt(416.73,295.68), pt(414.96,296.34), pt(392.86,299.6), pt(378.44,302.44), pt(379.76,305.78), pt(380.54,309.26), pt(380.76,312.82), pt(380.41,316.4), pt(397.13,314.58), pt(421.99,311.88), pt(431.39,346.29), pt(414.84,350.71), pt(422.65,380.77), pt(453.53,372.46), pt(442.47,331.61), pt(442.23,331.68), pt(434.13,295.08), pt(434.12,295.08), pt(428.13,256.09)], presetLandUse: "shatach-patuach" },
+    { id: "park12", points: [pt(495.54,466.91), pt(487.55,452.92), pt(458.99,465.87), pt(443.19,436.91), pt(430.22,402.87), pt(340.69,426.96), pt(350.41,425.07), pt(360.23,423.81), pt(370.11,423.2), pt(380.01,423.24), pt(385.09,423.77), pt(389.98,424.98), pt(394.62,426.82), pt(398.95,429.26), pt(402.92,432.26), pt(406.46,435.78), pt(409.52,439.78), pt(412.04,444.22), pt(418.41,457.22), pt(425.01,470.09), pt(431.84,482.84), pt(438.91,495.47), pt(467.5,481.71), pt(495.54,466.91)], presetLandUse: "shatach-patuach" },
     // מבני ציבור קיימים (שכבה חומה בתשריט) - אותו עיקרון, ייעוד ראשוני שניתן לשנות.
     { id: "bld0", points: [pt(160.7,178.5), pt(232.2,192.2), pt(451.2,234.3), pt(453.6,129.1), pt(453.6,128.3), pt(453.6,127.4), pt(453.4,125.5), pt(453.0,123.7), pt(452.4,122.0), pt(451.6,120.3), pt(451.6,120.3), pt(451.1,119.3), pt(450.6,118.5), pt(450.0,117.6), pt(445.6,112.0), pt(225.5,69.5), pt(184.0,113.1)], presetLandUse: "mivne-tzibur" },
     { id: "bld1", points: [pt(389.4,443.6), pt(318.8,465.4), pt(309.1,471.4), pt(333.5,512.7), pt(418.1,638.6), pt(418.1,638.6), pt(418.1,638.6), pt(444.1,675.3), pt(445.7,674.1), pt(447.4,672.9), pt(449.0,671.7), pt(450.6,670.4), pt(474.8,651.2), pt(505.8,626.7), pt(488.6,605.5), pt(472.2,583.9), pt(456.5,561.7), pt(441.5,539.0), pt(427.3,515.8), pt(413.9,492.2), pt(401.2,468.1), pt(389.4,443.6)], presetLandUse: "mivne-tzibur" },
@@ -390,6 +392,9 @@ window.gameData = (function () {
   const MIN_OPEN_SPACE_PERCENT = 10;
   const ADJACENCY_THRESHOLD = 22;
   const STREET_ACCESS_THRESHOLD = 40;
+  const MIXED_USE_WALK_DISTANCE = 180;
+  const OPEN_SPACE_WALK_DISTANCE = 150;
+  const MIN_RESIDENTIAL_MINORITY_PERCENT = 15;
 
   function buildingFootprint(plot) {
     if (!plot.landUse || !plot.buildingLine) return null;
@@ -482,11 +487,97 @@ window.gameData = (function () {
     },
   ];
 
+  const INSIGHTS = [
+    {
+      key: "mixed-use-access",
+      title: "עירוב שימושים - נגישות למסחר",
+      check(plots) {
+        const residential = plots.filter((p) => RESIDENTIAL_KEYS.includes(p.landUse));
+        const commerce = plots.filter((p) => p.landUse === "misachar");
+        if (residential.length === 0) {
+          return { ok: true, violatingIds: [], message: "עדיין אין מגרשי מגורים בתכנון - אי אפשר לבדוק נגישות למסחר." };
+        }
+        if (commerce.length === 0) {
+          return {
+            ok: false,
+            violatingIds: [],
+            message: `אין אף מגרש מסחר בתכנון. ${residential.length} מגרשי מגורים בלי חנות, מכולת או בית קפה בטווח הליכה - עירוב שימושים מתחיל בלשבץ מסחר בתוך שכונת המגורים, לא רק לאורך הכביש הראשי.`,
+          };
+        }
+        const far = residential.filter(
+          (r) => !commerce.some((c) => polyPolyDist(r.points, c.points) <= MIXED_USE_WALK_DISTANCE)
+        );
+        const percentNear = Math.round(((residential.length - far.length) / residential.length) * 100);
+        return {
+          ok: far.length === 0,
+          violatingIds: [],
+          message:
+            far.length === 0
+              ? `כל ${residential.length} מגרשי המגורים בטווח הליכה נוח ממסחר - עירוב השימושים עובד.`
+              : `${percentNear}% ממגרשי המגורים (${residential.length - far.length} מתוך ${residential.length}) בטווח הליכה ממסחר. ${far.length} מגרשים רחוקים מדי - פזרו מגרש מסחר נוסף באזור המרוחק במקום לרכז הכל בכתם אחד.`,
+        };
+      },
+    },
+    {
+      key: "open-space-access",
+      title: "פיזור שטחים פתוחים",
+      check(plots) {
+        const residential = plots.filter((p) => RESIDENTIAL_KEYS.includes(p.landUse));
+        const openSpaces = plots.filter((p) => p.landUse === OPEN_SPACE_KEY);
+        if (residential.length === 0) {
+          return { ok: true, violatingIds: [], message: 'עדיין אין מגרשי מגורים בתכנון - אי אפשר לבדוק נגישות לשצ"פ.' };
+        }
+        if (openSpaces.length === 0) {
+          return {
+            ok: false,
+            violatingIds: [],
+            message: 'אין אף שצ"פ בתכנון כרגע - גם אם אחוז השטח הפתוח הכולל יעמוד בדרישה, בלי מגרש שצ"פ ממשי אין לתושבים לאן ללכת ברגל.',
+          };
+        }
+        const far = residential.filter(
+          (r) => !openSpaces.some((o) => polyPolyDist(r.points, o.points) <= OPEN_SPACE_WALK_DISTANCE)
+        );
+        const percentNear = Math.round(((residential.length - far.length) / residential.length) * 100);
+        return {
+          ok: far.length === 0,
+          violatingIds: [],
+          message:
+            far.length === 0
+              ? `כל ${residential.length} מגרשי המגורים בטווח הליכה משצ"פ כלשהו - הפיזור טוב, לא רק הכמות הכוללת.`
+              : `${percentNear}% ממגרשי המגורים בטווח הליכה משצ"פ. ${far.length} מגרשים רחוקים - שצ"פ אחד גדול בקצה התכנון לא משרת שכונה שלמה, שקלו כמה כתמים קטנים יותר במקום גוש אחד.`,
+        };
+      },
+    },
+    {
+      key: "residential-diversity",
+      title: "גיוון טיפוסי מגורים",
+      check(plots) {
+        const tzmuda = plots.filter((p) => p.landUse === "migurim-tzmudei-karka").length;
+        const ravey = plots.filter((p) => p.landUse === "migurim-ravey-komot").length;
+        const total = tzmuda + ravey;
+        if (total === 0) {
+          return { ok: true, violatingIds: [], message: "עדיין אין מגרשי מגורים בתכנון." };
+        }
+        const minorPercent = Math.round((Math.min(tzmuda, ravey) / total) * 100);
+        const dominant = tzmuda >= ravey ? "צמודי קרקע" : "רב קומות";
+        const ok = minorPercent >= MIN_RESIDENTIAL_MINORITY_PERCENT;
+        return {
+          ok,
+          violatingIds: [],
+          message: ok
+            ? `תמהיל מגורים מגוון - ${tzmuda} מגרשי צמודי קרקע מול ${ravey} רב קומות.`
+            : `${tzmuda} מגרשי צמודי קרקע מול ${ravey} רב קומות - התכנון מוטה כמעט לגמרי ל${dominant}. שכונה עם טיפוס דיור אחד מדירה אוכלוסיות שלמות (זוגות צעירים, קשישים, משפחות גדולות) - כדאי לגוון בין הצמודי קרקע לרב הקומות.`,
+        };
+      },
+    },
+  ];
+
   return {
     STREETS,
     BASE_LAND_USES,
     BUILDING_LINE_PRESETS,
     RULES,
+    INSIGHTS,
     MIN_OPEN_SPACE_PERCENT,
     generatePlots,
     buildingFootprint,
