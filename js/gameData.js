@@ -165,40 +165,33 @@ window.gameData = (function () {
   }
 
   // ---------- הרשת עצמה ----------
-  // רשת רחובות אחת מחוברת ("עץ" - כל רחוב יוצא מנקודה על רחוב אחר, אין מקטעים מנותקים).
-  // תכנון עצמאי, לא מבוסס על תשריט חיצוני - נועד להיות הגיוני ולא מקוטע: כל שטח שאינו
-  // רחוב מחולק למגרשים לאורך הרחוב הקרוב אליו, בלי חפיפה בין רחוב למגרש.
-  const SPINE = [pt(500, 745), pt(488, 600), pt(520, 460), pt(560, 340), pt(620, 220), pt(680, 120), pt(720, 55)];
-  const BRANCH_EAST = [pt(520, 460), pt(650, 445), pt(820, 435), pt(965, 425)];
-  const BRANCH_WEST = [pt(620, 220), pt(480, 208), pt(320, 198), pt(150, 188)];
-  const BRANCH_SW = [pt(488, 600), pt(350, 622), pt(170, 652)];
-  const GREENWAY = [pt(680, 120), pt(755, 155), pt(812, 205)];
-  const PARK_CENTER = pt(830, 220);
-  const PARK_RADIUS = 34;
+  // מרקם עירוני צפוף: רחוב טבעת סגור (המקיף שני "בלוקים") + רחוב פנימי שחוצה אותו וסוגר
+  // אותם משני הצדדים - בדיוק כמו שכונה אמיתית, לא "עץ" ענפים בודדים. מגרשים משני צידי כל
+  // קטע רחוב (גם מבפנים לכיוון הבלוק, גם מבחוץ), כך שכמעט כל השטח מנוצל. שאריות פנים-הבלוק
+  // שלא נכנס בהן מגרש נוסף נשארות כשטח ירוק פתוח (שצ"פ) ולא כריק לא-מוסבר.
+  const TOP_JUNCTION = pt(510, 145);
+  const BOTTOM_JUNCTION = pt(530, 670);
+  const LOOP = [pt(160, 130), TOP_JUNCTION, pt(860, 160), pt(880, 650), BOTTOM_JUNCTION, pt(180, 690)];
+  const LOOP_CLOSED = [...LOOP, LOOP[0]];
+  const CROSS = [TOP_JUNCTION, pt(500, 300), pt(505, 500), BOTTOM_JUNCTION];
+  const GREENWAY = [pt(880, 650), pt(945, 615), pt(990, 560)];
+  const PARK_CENTER = pt(1000, 545);
+  const PARK_RADIUS = 30;
 
   const STREETS = [
-    { id: "spine", type: "main", points: SPINE },
-    { id: "branch-east", type: "secondary", points: BRANCH_EAST },
-    { id: "branch-west", type: "secondary", points: BRANCH_WEST },
-    { id: "branch-sw", type: "secondary", points: BRANCH_SW },
+    { id: "loop", type: "main", points: LOOP_CLOSED },
+    { id: "cross", type: "secondary", points: CROSS },
     { id: "greenway-1", type: "greenway", points: GREENWAY },
   ];
 
   function generatePlots() {
     let plots = [];
-    const P = { width: 50, depth: 58, gap: 7, margin: 22 };
+    const P = { width: 42, depth: 52, gap: 6, margin: 26 };
 
-    // margin 30 בד"כ; ליד שני הצמתים עם הרחובות המשניים (מקטעים 2,3 של השדרה) צריך שוליים
-    // גדולים יותר כדי שמגרש לא יחפוף למגרש בתחילת הרחוב המסתעף בזווית.
-    plots = plots.concat(streetSidePlots(SPINE.slice(0, 4), { ...P, margin: 30, side: 1, streetId: "spine", idPrefix: "spine-r-a" }));
-    plots = plots.concat(streetSidePlots(SPINE.slice(3), { ...P, margin: 58, side: 1, streetId: "spine", idPrefix: "spine-r-b" }));
-    plots = plots.concat(streetSidePlots(SPINE, { ...P, margin: 42, side: -1, streetId: "spine", idPrefix: "spine-l" }));
-    plots = plots.concat(streetSidePlots(BRANCH_EAST, { ...P, margin: 36, side: 1, streetId: "branch-east", idPrefix: "east-b" }));
-    plots = plots.concat(streetSidePlots(BRANCH_EAST, { ...P, margin: 36, side: -1, streetId: "branch-east", idPrefix: "east-t" }));
-    plots = plots.concat(streetSidePlots(BRANCH_WEST, { ...P, margin: 36, side: 1, streetId: "branch-west", idPrefix: "west-b" }));
-    plots = plots.concat(streetSidePlots(BRANCH_WEST, { ...P, margin: 36, side: -1, streetId: "branch-west", idPrefix: "west-t" }));
-    plots = plots.concat(streetSidePlots(BRANCH_SW, { ...P, side: 1, streetId: "branch-sw", idPrefix: "sw-b" }));
-    plots = plots.concat(streetSidePlots(BRANCH_SW, { ...P, side: -1, streetId: "branch-sw", idPrefix: "sw-t" }));
+    plots = plots.concat(streetSidePlots(LOOP_CLOSED, { ...P, side: 1, streetId: "loop", idPrefix: "loop-out" }));
+    plots = plots.concat(streetSidePlots(LOOP_CLOSED, { ...P, margin: 40, side: -1, streetId: "loop", idPrefix: "loop-in" }));
+    plots = plots.concat(streetSidePlots(CROSS, { ...P, margin: 40, side: 1, streetId: "cross", idPrefix: "cross-r" }));
+    plots = plots.concat(streetSidePlots(CROSS, { ...P, margin: 40, side: -1, streetId: "cross", idPrefix: "cross-l" }));
 
     plots.forEach((p) => {
       p.landUse = null;
@@ -208,7 +201,13 @@ window.gameData = (function () {
     return plots;
   }
 
-  const PARK_CENTER_POLYGON = arcPolyline(PARK_CENTER, PARK_RADIUS, 0, 360, 40);
+  // שטח ירוק קיים (שצ"פ קבוע, לא מגרש לבחירת השחקן) - ממלא את פנים-הבלוק שנשאר פנוי בין
+  // טבעת המגרשים הפנימית לרחוב הצולב, כדי שלא יישאר שטח לא-מוסבר בתוך הבלוק.
+  const PARK_POLYGONS = [
+    arcPolyline(PARK_CENTER, PARK_RADIUS, 0, 360, 40),
+    [pt(245, 260), pt(455, 260), pt(455, 565), pt(245, 565)],
+    [pt(565, 260), pt(790, 260), pt(790, 565), pt(565, 565)],
+  ];
 
   // ---------- מקרא ----------
   const BASE_LAND_USES = [
@@ -305,7 +304,7 @@ window.gameData = (function () {
           ok,
           violatingIds: [],
           message: ok
-            ? `${percent.toFixed(0)}% שצ"פ משטח היישוב (לא כולל הכיכר הירוקה הקיימת) - עומד בדרישת המינימום (${MIN_OPEN_SPACE_PERCENT}%).`
+            ? `${percent.toFixed(0)}% שצ"פ משטח היישוב (לא כולל השטחים הירוקים הקיימים) - עומד בדרישת המינימום (${MIN_OPEN_SPACE_PERCENT}%).`
             : `${percent.toFixed(0)}% שצ"פ בלבד, מתחת למינימום המקובל של ${MIN_OPEN_SPACE_PERCENT}% - הוסיפו עוד שטחים פתוחים.`,
         };
       },
@@ -347,7 +346,7 @@ window.gameData = (function () {
     BUILDING_LINE_PRESETS,
     RULES,
     MIN_OPEN_SPACE_PERCENT,
-    PARK_CENTER_POLYGON,
+    PARK_POLYGONS,
     generatePlots,
     buildingFootprint,
     pointsToPath,

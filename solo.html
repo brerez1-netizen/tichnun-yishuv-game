@@ -201,7 +201,9 @@ function renderStreets() {
 function renderPark() {
   const layer = document.getElementById('parkLayer');
   layer.innerHTML = '';
-  layer.appendChild(svgEl('polygon', { points: gd.PARK_CENTER_POLYGON.map((p) => `${p.x},${p.y}`).join(' '), class: 'park' }));
+  gd.PARK_POLYGONS.forEach((poly) => {
+    layer.appendChild(svgEl('polygon', { points: poly.map((p) => `${p.x},${p.y}`).join(' '), class: 'park' }));
+  });
 }
 
 function renderPlots(violatingIds) {
