@@ -28,8 +28,6 @@
   .legend { display: flex; flex-wrap: wrap; gap: 8px; }
   .legend .chip { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; padding: 5px 10px; border-radius: 20px; background: rgba(255,255,255,0.06); }
   .legend .swatch { width: 14px; height: 14px; border-radius: 4px; display: inline-block; flex-shrink: 0; }
-  .legend .swatch.line { width: 20px; height: 4px; border-radius: 2px; }
-  .legend .swatch.dashed { background-image: repeating-linear-gradient(90deg, #5da36f 0 4px, transparent 4px 8px); background-color: transparent !important; height: 4px; }
 
   .board-wrap { overflow-x: auto; }
   svg#board { width: 100%; height: auto; display: block; }
@@ -40,10 +38,9 @@
   .plot.violation { stroke: var(--bad); stroke-width: 4; animation: pulse 1s infinite; }
   @keyframes pulse { 0%,100% { stroke-width: 4; } 50% { stroke-width: 6; } }
   .footprint { fill: rgba(0,0,0,0.32); pointer-events: none; }
-  .street-line { fill: none; stroke-linecap: round; stroke-linejoin: round; cursor: pointer; }
-  .street-line.selected { filter: drop-shadow(0 0 3px var(--cream)); }
-  .street-hit { fill: none; stroke: transparent; stroke-linecap: round; cursor: pointer; pointer-events: stroke; }
-  .park { fill: #4f9f63; opacity: 0.85; stroke: #386e46; stroke-width: 1.5; }
+  .street { fill: #6f92c9; stroke: #3f5c8a; stroke-width: 1; pointer-events: none; }
+  .park { fill: #4f9f63; stroke: #386e46; stroke-width: 1; pointer-events: none; }
+  .building { fill: #8a5a35; stroke: #4a2f1a; stroke-width: 1; pointer-events: none; }
 
   .panel-title { font-weight: 900; margin: 0 0 10px; font-size: 1.05rem; }
   .btn-group { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -55,10 +52,6 @@
   .bl-row { display: flex; gap: 8px; margin-top: 14px; }
   .bl-row button { flex: 1; padding: 10px; border-radius: 10px; border: 2px solid #6b4530; background: transparent; color: var(--cream); font-family: inherit; font-weight: 700; cursor: pointer; font-size: 0.85rem; }
   .bl-row button.active { background: var(--academy); border-color: var(--academy); }
-
-  .street-toggle { display: flex; gap: 8px; }
-  .street-toggle button { flex: 1; padding: 10px; border-radius: 10px; border: 2px solid #6b4530; background: transparent; color: var(--cream); font-family: inherit; font-weight: 700; cursor: pointer; font-size: 0.85rem; }
-  .street-toggle button.active { background: var(--academy); border-color: var(--academy); }
 
   .custom-form { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
   .custom-form input[type="text"] { flex: 1; min-width: 120px; padding: 8px 10px; border-radius: 8px; border: 2px solid #6b4530; font-family: inherit; }
@@ -81,16 +74,20 @@
 <body>
 <div class="wrap">
   <h1>🏘️ תכנון יישוב</h1>
-  <p class="subtitle">רשת רחובות ומגרשים בהשראת תשריט אמיתי - לא מייצג מקום ספציפי. סמנו ייעודי קרקע וקווי בניין על המגרשים, קבעו את סוג כל רחוב, ובדקו את התכנון.</p>
+  <p class="subtitle">מגרשים, רחובות, שצ"פ ומבני ציבור אמיתיים - חולצו מתשריט מאושר. הרחובות, השצ"פ ומבני הציבור הקיימים קבועים; סמנו ייעודי קרקע וקווי בניין על שאר המגרשים ובדקו את התכנון.</p>
 
   <div class="card">
     <div class="legend-group">
-      <div class="legend-group-title">ייעודי קרקע</div>
+      <div class="legend-group-title">ייעודי קרקע (לבחירתכם)</div>
       <div class="legend" id="legendLandUses"></div>
     </div>
     <div class="legend-group">
-      <div class="legend-group-title">סוגי רחוב</div>
-      <div class="legend" id="legendStreets"></div>
+      <div class="legend-group-title">קיים בשטח</div>
+      <div class="legend">
+        <div class="chip"><span class="swatch" style="background:#6f92c9"></span>רחוב</div>
+        <div class="chip"><span class="swatch" style="background:#4f9f63"></span>שצ"פ קיים</div>
+        <div class="chip"><span class="swatch" style="background:#8a5a35"></span>מבנה ציבור קיים</div>
+      </div>
     </div>
   </div>
 
@@ -102,15 +99,16 @@
           <line x1="0" y1="0" x2="0" y2="10" stroke="#5c3d27" stroke-width="4"></line>
         </pattern>
       </defs>
+      <g id="streetsLayer"></g>
       <g id="parkLayer"></g>
+      <g id="buildingLayer"></g>
       <g id="plotsLayer"></g>
       <g id="footprintsLayer"></g>
-      <g id="streetsLayer"></g>
     </svg>
   </div>
 
   <div class="card" id="detailPanel">
-    <p class="empty-note">לחצו על מגרש או רחוב במפה כדי לערוך אותו.</p>
+    <p class="empty-note">לחצו על מגרש במפה כדי לערוך אותו.</p>
   </div>
 
   <div class="controls">
@@ -123,18 +121,16 @@
 
 <script src="js/gameData.js"></script>
 <script>
-const STORAGE_KEY = 'tichnunYishuvPlan_v2';
+const STORAGE_KEY = 'tichnunYishuvPlan_v3';
 const gd = window.gameData;
 
 let plots = gd.generatePlots();
-let streetOverrides = {};
 let customLandUses = [];
-let selected = null; // { kind: 'plot'|'street', id }
+let selectedId = null;
 
 function allLandUses() { return gd.BASE_LAND_USES.concat(customLandUses); }
 function luByKey(key) { return allLandUses().find((l) => l.key === key); }
 function plotById(id) { return plots.find((p) => p.id === id); }
-function streetById(id) { return gd.STREETS.find((s) => s.id === id); }
 
 function loadSaved() {
   try {
@@ -145,14 +141,13 @@ function loadSaved() {
         if (saved.plots[p.id]) Object.assign(p, saved.plots[p.id]);
       });
     }
-    if (saved.streetOverrides) streetOverrides = saved.streetOverrides;
   } catch (e) { /* התעלמות מנתונים פגומים */ }
 }
 
 function save() {
   const plotsData = {};
   plots.forEach((p) => { plotsData[p.id] = { landUse: p.landUse, buildingLine: p.buildingLine }; });
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ plots: plotsData, streetOverrides, customLandUses }));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ plots: plotsData, customLandUses }));
 }
 
 function svgEl(tag, attrs) {
@@ -170,39 +165,25 @@ function renderLegend() {
     chip.innerHTML = `<span class="swatch" style="background:${l.color}"></span>${l.label}`;
     luBar.appendChild(chip);
   });
-
-  const stBar = document.getElementById('legendStreets');
-  stBar.innerHTML = gd.STREET_TYPES.map((s) =>
-    `<div class="chip"><span class="swatch line ${s.dashed ? 'dashed' : ''}" style="${s.dashed ? '' : 'background:' + s.color}"></span>${s.label}</div>`
-  ).join('') + '<div class="chip"><span class="swatch" style="background:#4f9f63"></span>שצ"פ קיים (כיכר)</div>';
 }
 
-function renderStreets() {
-  const layer = document.getElementById('streetsLayer');
-  layer.innerHTML = '';
-  gd.STREETS.forEach((s) => {
-    const type = gd.streetTypeOf(s.id, streetOverrides);
-    const def = gd.STREET_TYPES.find((t) => t.key === type);
-    const d = 'M ' + s.points.map((p) => `${p.x},${p.y}`).join(' L ');
-    const visible = svgEl('path', {
-      d, class: 'street-line' + (selected && selected.kind === 'street' && selected.id === s.id ? ' selected' : ''),
-      stroke: def.color, 'stroke-width': def.width,
-    });
-    if (def.dashed) visible.setAttribute('stroke-dasharray', '10,8');
-    visible.dataset.id = s.id;
-    const hit = svgEl('path', { d, class: 'street-hit', 'stroke-width': Math.max(def.width, 24) });
-    hit.dataset.id = s.id;
-    hit.onclick = () => selectItem('street', s.id);
-    layer.appendChild(visible);
-    layer.appendChild(hit);
+function renderFixedLayers() {
+  const streetLayer = document.getElementById('streetsLayer');
+  streetLayer.innerHTML = '';
+  gd.STREETS.forEach((poly) => {
+    streetLayer.appendChild(svgEl('polygon', { points: poly.map((p) => `${p.x},${p.y}`).join(' '), class: 'street' }));
   });
-}
 
-function renderPark() {
-  const layer = document.getElementById('parkLayer');
-  layer.innerHTML = '';
+  const parkLayer = document.getElementById('parkLayer');
+  parkLayer.innerHTML = '';
   gd.PARK_POLYGONS.forEach((poly) => {
-    layer.appendChild(svgEl('polygon', { points: poly.map((p) => `${p.x},${p.y}`).join(' '), class: 'park' }));
+    parkLayer.appendChild(svgEl('polygon', { points: poly.map((p) => `${p.x},${p.y}`).join(' '), class: 'park' }));
+  });
+
+  const buildingLayer = document.getElementById('buildingLayer');
+  buildingLayer.innerHTML = '';
+  gd.BUILDING_POLYGONS.forEach((poly) => {
+    buildingLayer.appendChild(svgEl('polygon', { points: poly.map((p) => `${p.x},${p.y}`).join(' '), class: 'building' }));
   });
 }
 
@@ -214,15 +195,15 @@ function renderPlots(violatingIds) {
   plots.forEach((p) => {
     const cls = ['plot'];
     if (!p.landUse) cls.push('empty');
-    if (selected && selected.kind === 'plot' && selected.id === p.id) cls.push('selected');
+    if (selectedId === p.id) cls.push('selected');
     if (violatingIds && violatingIds.has(p.id)) cls.push('violation');
     const el = svgEl('polygon', { points: p.points.map((pt) => `${pt.x},${pt.y}`).join(' '), class: cls.join(' ') });
     if (p.landUse) el.setAttribute('fill', luByKey(p.landUse).color);
     el.dataset.id = p.id;
-    el.onclick = () => selectItem('plot', p.id);
+    el.onclick = () => selectPlot(p.id);
     layer.appendChild(el);
 
-    const footprint = gd.buildingFootprint(p, streetOverrides);
+    const footprint = gd.buildingFootprint(p);
     if (footprint) {
       fpLayer.appendChild(svgEl('polygon', { points: footprint.map((pt) => `${pt.x},${pt.y}`).join(' '), class: 'footprint' }));
     }
@@ -230,39 +211,23 @@ function renderPlots(violatingIds) {
 }
 
 function renderBoard(violatingIds) {
-  renderStreets();
-  renderPark();
+  renderFixedLayers();
   renderPlots(violatingIds);
 }
 
-function selectItem(kind, id) {
-  selected = { kind, id };
+function selectPlot(id) {
+  selectedId = id;
   renderBoard();
   renderDetailPanel();
 }
 
 function renderDetailPanel() {
   const panel = document.getElementById('detailPanel');
-  if (!selected) {
-    panel.innerHTML = '<p class="empty-note">לחצו על מגרש או רחוב במפה כדי לערוך אותו.</p>';
+  if (!selectedId) {
+    panel.innerHTML = '<p class="empty-note">לחצו על מגרש במפה כדי לערוך אותו.</p>';
     return;
   }
-  if (selected.kind === 'street') {
-    const s = streetById(selected.id);
-    const currentType = gd.streetTypeOf(s.id, streetOverrides);
-    panel.innerHTML = '<p class="panel-title">סוג הרחוב</p><div class="street-toggle" id="streetTypeButtons"></div>';
-    const box = document.getElementById('streetTypeButtons');
-    gd.STREET_TYPES.forEach((t) => {
-      const btn = document.createElement('button');
-      btn.className = t.key === currentType ? 'active' : '';
-      btn.innerText = t.label;
-      btn.onclick = () => setStreetType(s.id, t.key);
-      box.appendChild(btn);
-    });
-    return;
-  }
-
-  const p = plotById(selected.id);
+  const p = plotById(selectedId);
   panel.innerHTML = `
     <p class="panel-title">ייעוד המגרש</p>
     <div class="btn-group" id="luButtons"></div>
@@ -309,7 +274,7 @@ function renderDetailPanel() {
 }
 
 function setLandUse(key) {
-  const p = plotById(selected.id);
+  const p = plotById(selectedId);
   p.landUse = key;
   if (key && !p.buildingLine) p.buildingLine = 'urban';
   if (!key) p.buildingLine = null;
@@ -319,15 +284,8 @@ function setLandUse(key) {
 }
 
 function setBuildingLine(key) {
-  const p = plotById(selected.id);
+  const p = plotById(selectedId);
   p.buildingLine = key;
-  save();
-  renderBoard();
-  renderDetailPanel();
-}
-
-function setStreetType(streetId, type) {
-  streetOverrides[streetId] = type;
   save();
   renderBoard();
   renderDetailPanel();
@@ -349,9 +307,8 @@ function addCustomLandUse() {
 function resetPlan() {
   localStorage.removeItem(STORAGE_KEY);
   plots = gd.generatePlots();
-  streetOverrides = {};
   customLandUses = [];
-  selected = null;
+  selectedId = null;
   document.getElementById('resultsPanel').style.display = 'none';
   renderLegend();
   renderBoard();
@@ -359,7 +316,7 @@ function resetPlan() {
 }
 
 function evaluate() {
-  const results = gd.RULES.map((rule) => rule.check(plots, streetOverrides));
+  const results = gd.RULES.map((rule) => rule.check(plots));
   const violatingIds = new Set(results.flatMap((r) => r.violatingIds));
   renderBoard(violatingIds);
 
