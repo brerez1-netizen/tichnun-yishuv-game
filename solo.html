@@ -60,6 +60,7 @@
   .controls { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 4px; }
   button.action { font-family: inherit; font-weight: 700; font-size: 1rem; border: none; border-radius: 12px; padding: 13px 28px; cursor: pointer; background: linear-gradient(135deg, var(--cream), #d8b98e); color: var(--espresso); }
   button.ghost { background: transparent; border: 2px solid #d8c0a8; color: #d8c0a8; }
+  button.toggle-on { background: var(--academy); border: 2px solid var(--academy); color: var(--cream); }
 
   .result-row { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border-radius: 10px; margin-bottom: 10px; }
   .result-row.ok { background: rgba(62,207,110,0.12); }
@@ -108,6 +109,7 @@
   </div>
 
   <div class="controls">
+    <button class="action ghost" id="multiSelectBtn" onclick="toggleMultiSelect()">☐ בחירה מרובה</button>
     <button class="action" onclick="evaluate()">✅ בדקו תכנון</button>
     <button class="action ghost" onclick="if(confirm('לאפס את כל התכנון?')) resetPlan();">איפוס</button>
   </div>
@@ -122,7 +124,8 @@ const gd = window.gameData;
 
 let plots = gd.generatePlots();
 let customLandUses = [];
-let selectedId = null;
+let selectedIds = new Set();
+let multiSelectMode = false;
 
 function allLandUses() { return gd.BASE_LAND_USES.concat(customLandUses); }
 function luByKey(key) { return allLandUses().find((l) => l.key === key); }
@@ -179,7 +182,7 @@ function renderPlots(violatingIds) {
   plots.forEach((p) => {
     const cls = ['plot'];
     if (!p.landUse) cls.push('empty');
-    if (selectedId === p.id) cls.push('selected');
+    if (selectedIds.has(p.id)) cls.push('selected');
     if (violatingIds && violatingIds.has(p.id)) cls.push('violation');
     const el = svgEl('polygon', { points: p.points.map((pt) => `${pt.x},${pt.y}`).join(' '), class: cls.join(' ') });
     if (p.landUse) el.setAttribute('fill', luByKey(p.landUse).color);
@@ -200,20 +203,42 @@ function renderBoard(violatingIds) {
 }
 
 function selectPlot(id) {
-  selectedId = id;
+  if (multiSelectMode) {
+    if (selectedIds.has(id)) selectedIds.delete(id);
+    else selectedIds.add(id);
+  } else {
+    selectedIds = new Set([id]);
+  }
   renderBoard();
+  renderDetailPanel();
+}
+
+function toggleMultiSelect() {
+  multiSelectMode = !multiSelectMode;
+  const btn = document.getElementById('multiSelectBtn');
+  btn.classList.toggle('toggle-on', multiSelectMode);
+  btn.innerText = (multiSelectMode ? '☑' : '☐') + ' בחירה מרובה';
+  if (!multiSelectMode && selectedIds.size > 1) {
+    selectedIds = new Set([[...selectedIds][0]]);
+    renderBoard();
+  }
   renderDetailPanel();
 }
 
 function renderDetailPanel() {
   const panel = document.getElementById('detailPanel');
-  if (!selectedId) {
-    panel.innerHTML = '<p class="empty-note">לחצו על מגרש במפה כדי לערוך אותו.</p>';
+  if (selectedIds.size === 0) {
+    panel.innerHTML = '<p class="empty-note">לחצו על מגרש במפה כדי לערוך אותו. (בחירה מרובה: הפעילו את הכפתור ואז לחצו על כמה מגרשים כדי לצבוע אותם יחד באותו ייעוד.)</p>';
     return;
   }
-  const p = plotById(selectedId);
+  const selectedPlots = [...selectedIds].map(plotById).filter(Boolean);
+  const multi = selectedPlots.length > 1;
+  const first = selectedPlots[0];
+  const commonLandUse = selectedPlots.every((p) => p.landUse === first.landUse) ? first.landUse : null;
+  const commonBuildingLine = selectedPlots.every((p) => p.buildingLine === first.buildingLine) ? first.buildingLine : null;
+
   panel.innerHTML = `
-    <p class="panel-title">ייעוד המגרש</p>
+    <p class="panel-title">${multi ? `ייעוד ${selectedPlots.length} מגרשים נבחרים` : 'ייעוד המגרש'}</p>
     <div class="btn-group" id="luButtons"></div>
     <div id="customForm" style="display:none;" class="custom-form">
       <input type="text" id="customLabel" placeholder="שם הייעוד" maxlength="24" />
@@ -221,11 +246,12 @@ function renderDetailPanel() {
       <button class="lu-btn" onclick="addCustomLandUse()">הוספה</button>
     </div>
     <div id="buildingLineSection"></div>
+    ${multi ? '<button class="action ghost" style="margin-top:14px;" onclick="clearSelection()">ניקוי בחירה</button>' : ''}
   `;
   const luButtons = document.getElementById('luButtons');
   allLandUses().forEach((l) => {
     const btn = document.createElement('button');
-    btn.className = 'lu-btn' + (p.landUse === l.key ? ' active' : '');
+    btn.className = 'lu-btn' + (commonLandUse === l.key ? ' active' : '');
     btn.style.background = l.color;
     btn.style.color = l.textColor;
     btn.innerText = l.label;
@@ -239,17 +265,17 @@ function renderDetailPanel() {
   luButtons.appendChild(addBtn);
   const eraseBtn = document.createElement('button');
   eraseBtn.className = 'lu-btn erase';
-  eraseBtn.innerText = 'נקה מגרש';
+  eraseBtn.innerText = multi ? 'נקו מגרשים' : 'נקה מגרש';
   eraseBtn.onclick = () => setLandUse(null);
   luButtons.appendChild(eraseBtn);
 
   const blSection = document.getElementById('buildingLineSection');
-  if (p.landUse) {
+  if (commonLandUse) {
     blSection.innerHTML = '<p class="panel-title" style="margin-top:16px;">קו בניין</p><div class="bl-row" id="blButtons"></div>';
     const blBox = document.getElementById('blButtons');
     Object.values(gd.BUILDING_LINE_PRESETS).forEach((preset) => {
       const btn = document.createElement('button');
-      btn.className = p.buildingLine === preset.key ? 'active' : '';
+      btn.className = commonBuildingLine === preset.key ? 'active' : '';
       btn.innerText = preset.label;
       btn.onclick = () => setBuildingLine(preset.key);
       blBox.appendChild(btn);
@@ -257,19 +283,26 @@ function renderDetailPanel() {
   }
 }
 
+function clearSelection() {
+  selectedIds = new Set();
+  renderBoard();
+  renderDetailPanel();
+}
+
 function setLandUse(key) {
-  const p = plotById(selectedId);
-  p.landUse = key;
-  if (key && !p.buildingLine) p.buildingLine = 'urban';
-  if (!key) p.buildingLine = null;
+  selectedIds.forEach((id) => {
+    const p = plotById(id);
+    p.landUse = key;
+    if (key && !p.buildingLine) p.buildingLine = 'urban';
+    if (!key) p.buildingLine = null;
+  });
   save();
   renderBoard();
   renderDetailPanel();
 }
 
 function setBuildingLine(key) {
-  const p = plotById(selectedId);
-  p.buildingLine = key;
+  selectedIds.forEach((id) => { plotById(id).buildingLine = key; });
   save();
   renderBoard();
   renderDetailPanel();
@@ -292,7 +325,7 @@ function resetPlan() {
   localStorage.removeItem(STORAGE_KEY);
   plots = gd.generatePlots();
   customLandUses = [];
-  selectedId = null;
+  selectedIds = new Set();
   document.getElementById('resultsPanel').style.display = 'none';
   renderLegend();
   renderBoard();
