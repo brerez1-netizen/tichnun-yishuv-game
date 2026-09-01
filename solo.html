@@ -110,7 +110,7 @@
 
   <div class="controls">
     <button class="action ghost" id="multiSelectBtn" onclick="toggleMultiSelect()">☐ בחירה מרובה</button>
-    <button class="action" onclick="evaluate()">✅ בדקו תכנון</button>
+    <button class="action" onclick="checkPlan()">✅ בדקו תכנון</button>
     <button class="action ghost" onclick="if(confirm('לאפס את כל התכנון?')) resetPlan();">איפוס</button>
   </div>
 
@@ -332,7 +332,7 @@ function resetPlan() {
   renderDetailPanel();
 }
 
-function evaluate() {
+function checkPlan() {
   const results = gd.RULES.map((rule) => rule.check(plots));
   const violatingIds = new Set(results.flatMap((r) => r.violatingIds));
   renderBoard(violatingIds);
