@@ -74,19 +74,17 @@
 <body>
 <div class="wrap">
   <h1>🏘️ תכנון יישוב</h1>
-  <p class="subtitle">מגרשים, רחובות, שצ"פ ומבני ציבור אמיתיים - חולצו מתשריט מאושר. הרחובות, השצ"פ ומבני הציבור הקיימים קבועים; סמנו ייעודי קרקע וקווי בניין על שאר המגרשים ובדקו את התכנון.</p>
+  <p class="subtitle">מגרשים, רחובות, שצ"פ ומבני ציבור אמיתיים - חולצו מתשריט מאושר. הרחובות קבועים; כל מגרש אחר - כולל השצ"פ ומבני הציבור הקיימים, שכבר מסומנים בייעודם - ניתן לבחור ולשנות. סמנו ייעודי קרקע וקווי בניין ובדקו את התכנון.</p>
 
   <div class="card">
     <div class="legend-group">
-      <div class="legend-group-title">ייעודי קרקע (לבחירתכם)</div>
+      <div class="legend-group-title">ייעודי קרקע (לבחירתכם - גם על מגרשים שכבר מסומנים)</div>
       <div class="legend" id="legendLandUses"></div>
     </div>
     <div class="legend-group">
-      <div class="legend-group-title">קיים בשטח</div>
+      <div class="legend-group-title">קבוע (לא ניתן לעריכה)</div>
       <div class="legend">
         <div class="chip"><span class="swatch" style="background:#6f92c9"></span>רחוב</div>
-        <div class="chip"><span class="swatch" style="background:#4f9f63"></span>שצ"פ קיים</div>
-        <div class="chip"><span class="swatch" style="background:#8a5a35"></span>מבנה ציבור קיים</div>
       </div>
     </div>
   </div>
@@ -100,8 +98,6 @@
         </pattern>
       </defs>
       <g id="streetsLayer"></g>
-      <g id="parkLayer"></g>
-      <g id="buildingLayer"></g>
       <g id="plotsLayer"></g>
       <g id="footprintsLayer"></g>
     </svg>
@@ -172,18 +168,6 @@ function renderFixedLayers() {
   streetLayer.innerHTML = '';
   gd.STREETS.forEach((poly) => {
     streetLayer.appendChild(svgEl('polygon', { points: poly.map((p) => `${p.x},${p.y}`).join(' '), class: 'street' }));
-  });
-
-  const parkLayer = document.getElementById('parkLayer');
-  parkLayer.innerHTML = '';
-  gd.PARK_POLYGONS.forEach((poly) => {
-    parkLayer.appendChild(svgEl('polygon', { points: poly.map((p) => `${p.x},${p.y}`).join(' '), class: 'park' }));
-  });
-
-  const buildingLayer = document.getElementById('buildingLayer');
-  buildingLayer.innerHTML = '';
-  gd.BUILDING_POLYGONS.forEach((poly) => {
-    buildingLayer.appendChild(svgEl('polygon', { points: poly.map((p) => `${p.x},${p.y}`).join(' '), class: 'building' }));
   });
 }
 
