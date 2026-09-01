@@ -136,102 +136,69 @@ window.gameData = (function () {
     return plots;
   }
 
+  // ממלא מגרשים לאורך כל מקטע ישר של רחוב (פוליליין עם כמה נקודות), עם שוליים בכל קצה מקטע
+  // כדי שמגרשים לא ייכנסו לצומת עם רחוב אחר. ממלא כמה שנכנס במקטע, בלי לחרוג ובלי לחצות רחוב.
+  function streetSidePlots(streetPoints, { width, depth, gap = 6, margin = 20, side = 1, streetId, idPrefix }) {
+    const plots = [];
+    for (let i = 0; i < streetPoints.length - 1; i++) {
+      const a = streetPoints[i], b = streetPoints[i + 1];
+      const segDir = norm(sub(b, a));
+      const perp = pt(segDir.y, -segDir.x);
+      const segLen = vlen(sub(b, a));
+      const usable = segLen - 2 * margin;
+      if (usable < width) continue;
+      const step = width + gap;
+      const count = Math.max(1, Math.floor((usable + gap) / step));
+      const used = count * step - gap;
+      const startOffset = margin + (usable - used) / 2;
+      const segStart = add(a, scale(segDir, startOffset));
+      for (let k = 0; k < count; k++) {
+        const base = add(segStart, scale(segDir, k * step));
+        const p0 = base;
+        const p1 = add(base, scale(segDir, width));
+        const p2 = add(p1, scale(perp, depth * side));
+        const p3 = add(p0, scale(perp, depth * side));
+        plots.push({ id: `${idPrefix}-${i}-${k}`, points: [p0, p1, p2, p3], streetIds: [streetId], frontEdge: 0 });
+      }
+    }
+    return plots;
+  }
+
   // ---------- הרשת עצמה ----------
-  const RING_CENTER = pt(620, 210);
-  const RING_R_INNER = 95;
-  const RING_R_OUTER = 168;
-  const RING_START_DEG = -160;
-  const RING_END_DEG = 95;
+  // רשת רחובות אחת מחוברת ("עץ" - כל רחוב יוצא מנקודה על רחוב אחר, אין מקטעים מנותקים).
+  // תכנון עצמאי, לא מבוסס על תשריט חיצוני - נועד להיות הגיוני ולא מקוטע: כל שטח שאינו
+  // רחוב מחולק למגרשים לאורך הרחוב הקרוב אליו, בלי חפיפה בין רחוב למגרש.
+  const SPINE = [pt(500, 745), pt(488, 600), pt(520, 460), pt(560, 340), pt(620, 220), pt(680, 120), pt(720, 55)];
+  const BRANCH_EAST = [pt(520, 460), pt(650, 445), pt(820, 435), pt(965, 425)];
+  const BRANCH_WEST = [pt(620, 220), pt(480, 208), pt(320, 198), pt(150, 188)];
+  const BRANCH_SW = [pt(488, 600), pt(350, 622), pt(170, 652)];
+  const GREENWAY = [pt(680, 120), pt(755, 155), pt(812, 205)];
+  const PARK_CENTER = pt(830, 220);
+  const PARK_RADIUS = 34;
 
   const STREETS = [
-    {
-      id: "ring-main",
-      type: "main",
-      points: arcPolyline(RING_CENTER, RING_R_INNER, RING_START_DEG, RING_END_DEG, 24),
-    },
-    {
-      id: "entry-main",
-      type: "main",
-      points: [pt(520, 740), pt(520, 555), pt(553, 430), pt(590, 350)],
-    },
-    { id: "secondary-1", type: "secondary", points: [pt(690, 555), pt(955, 555)] },
-    { id: "secondary-2", type: "secondary", points: [pt(800, 555), pt(800, 740)] },
-    {
-      id: "greenway-1",
-      type: "greenway",
-      points: [pt(RING_CENTER.x + 15, RING_CENTER.y + 55), pt(700, 340), pt(730, 430), pt(760, 530)],
-    },
-    {
-      // מקטע מגרשים אמיתי, מחולץ מתשריט אליכין 457-1194877 (לא שכפול מלא, קבוצת מגרשים אחת)
-      id: "real-street-1",
-      type: "secondary",
-      points: [pt(412, 90), pt(378, 168), pt(362, 232), pt(300, 322), pt(278, 340), pt(200, 330), pt(38, 418)],
-    },
+    { id: "spine", type: "main", points: SPINE },
+    { id: "branch-east", type: "secondary", points: BRANCH_EAST },
+    { id: "branch-west", type: "secondary", points: BRANCH_WEST },
+    { id: "branch-sw", type: "secondary", points: BRANCH_SW },
+    { id: "greenway-1", type: "greenway", points: GREENWAY },
   ];
 
   function generatePlots() {
     let plots = [];
+    const P = { width: 50, depth: 58, gap: 7, margin: 22 };
 
-    // כיכר: 10 מגרשים טרפזיים סביב הרחוב הראשי המעוגל
-    plots = plots.concat(
-      radialPlots({
-        center: RING_CENTER,
-        startDeg: RING_START_DEG + 6,
-        endDeg: RING_END_DEG - 6,
-        count: 10,
-        rInner: RING_R_INNER,
-        rOuter: RING_R_OUTER,
-        streetId: "ring-main",
-        idPrefix: "ring-",
-      }),
-    );
-
-    // שורות מגרשים משני צידי הכביש הראשי הנכנס (שני מקטעים ישרים בקירוב)
-    const seg1a = pt(520, 740), seg1b = pt(520, 555);
-    const dir1 = norm(sub(seg1b, seg1a));
-    const perp1 = pt(dir1.y, -dir1.x);
-    plots = plots.concat(
-      rowPlots({ start: add(seg1a, scale(dir1, 8)), alongDir: dir1, perpDir: perp1, count: 3, width: 52, depth: 60, streetId: "entry-main", idPrefix: "entry-L", side: 1 }),
-    );
-    plots = plots.concat(
-      rowPlots({ start: add(seg1a, scale(dir1, 8)), alongDir: dir1, perpDir: perp1, count: 3, width: 52, depth: 60, streetId: "entry-main", idPrefix: "entry-R", side: -1 }),
-    );
-
-    // רשת מלבנית משנית (דרום-מזרח) - שתי שורות לאורך כל רחוב משני
-    const s1a = pt(690, 555), s1b = pt(955, 555);
-    const dirS1 = norm(sub(s1b, s1a));
-    const perpS1 = pt(dirS1.y, -dirS1.x);
-    plots = plots.concat(
-      rowPlots({ start: add(s1a, scale(dirS1, 6)), alongDir: dirS1, perpDir: perpS1, count: 5, width: 48, depth: 55, streetId: "secondary-1", idPrefix: "sec1-top", side: -1 }),
-    );
-    plots = plots.concat(
-      rowPlots({ start: add(s1a, scale(dirS1, 6)), alongDir: dirS1, perpDir: perpS1, count: 5, width: 48, depth: 55, streetId: "secondary-1", idPrefix: "sec1-bot", side: 1 }),
-    );
-
-    const s2a = pt(800, 560), s2b = pt(800, 740);
-    const dirS2 = norm(sub(s2b, s2a));
-    const perpS2 = pt(dirS2.y, -dirS2.x);
-    plots = plots.concat(
-      rowPlots({ start: add(s2a, scale(dirS2, 6)), alongDir: dirS2, perpDir: perpS2, count: 3, width: 48, depth: 55, streetId: "secondary-2", idPrefix: "sec2-r", side: 1 }),
-    );
-
-    // מקבץ מגרשים אמיתי - חולץ מתשריט אליכין (12 מגרשים, צורות וגדלים אמיתיים לא סכמטיים).
-    // אין להם צלע-חזית מוגדרת (frontEdge) ולכן קו הבניין שלהם אחיד בכל הצדדים, לא א-סימטרי.
-    const REAL_PLOTS = [
-      { id: "real-0", points: [pt(380.5, 130.8), pt(370.2, 184.1), pt(314.8, 173.4), pt(325.1, 120.1)] },
-      { id: "real-1", points: [pt(363.1, 229.0), pt(306.2, 218.1), pt(314.8, 173.4), pt(370.2, 184.1)] },
-      { id: "real-2", points: [pt(302.9, 235.3), pt(358.9, 246.0), pt(357.7, 249.3), pt(349.8, 290.6), pt(294.2, 279.9)] },
-      { id: "real-3", points: [pt(288.7, 308.9), pt(294.2, 279.9), pt(349.8, 290.6), pt(344.3, 319.3)] },
-      { id: "real-4", points: [pt(128.2, 285.8), pt(256.2, 310.4), pt(254.4, 318.5), pt(126.5, 294.6)] },
-      { id: "real-5", points: [pt(256.4, 310.4), pt(257.9, 303.1), pt(288.7, 308.9), pt(285.7, 324.3), pt(254.4, 318.5), pt(256.2, 310.4)] },
-      { id: "real-6", points: [pt(343.4, 323.9), pt(342.2, 334.9), pt(285.7, 324.3), pt(288.7, 308.9), pt(344.3, 319.3)] },
-      { id: "real-7", points: [pt(126.5, 294.6), pt(120.5, 326.0), pt(112.1, 371.0), pt(107.6, 394.2), pt(74.1, 387.7), pt(93.6, 288.5)] },
-      { id: "real-8", points: [pt(74.1, 387.7), pt(74.0, 387.7), pt(60.1, 385.1), pt(79.6, 286.2), pt(93.6, 288.5)] },
-      { id: "real-9", points: [pt(120.5, 326.0), pt(181.9, 337.8), pt(173.3, 382.9), pt(112.1, 371.0)] },
-      { id: "real-10", points: [pt(240.6, 384.2), pt(196.9, 387.5), pt(173.3, 382.9), pt(181.9, 337.8), pt(247.1, 350.4)] },
-      { id: "real-11", points: [pt(196.9, 387.5), pt(107.6, 394.2), pt(112.1, 371.0), pt(173.3, 382.9)] },
-    ].map((p) => ({ ...p, streetIds: ["real-street-1"] }));
-    plots = plots.concat(REAL_PLOTS);
+    // margin 30 בד"כ; ליד שני הצמתים עם הרחובות המשניים (מקטעים 2,3 של השדרה) צריך שוליים
+    // גדולים יותר כדי שמגרש לא יחפוף למגרש בתחילת הרחוב המסתעף בזווית.
+    plots = plots.concat(streetSidePlots(SPINE.slice(0, 4), { ...P, margin: 30, side: 1, streetId: "spine", idPrefix: "spine-r-a" }));
+    plots = plots.concat(streetSidePlots(SPINE.slice(3), { ...P, margin: 58, side: 1, streetId: "spine", idPrefix: "spine-r-b" }));
+    plots = plots.concat(streetSidePlots(SPINE, { ...P, margin: 42, side: -1, streetId: "spine", idPrefix: "spine-l" }));
+    plots = plots.concat(streetSidePlots(BRANCH_EAST, { ...P, margin: 36, side: 1, streetId: "branch-east", idPrefix: "east-b" }));
+    plots = plots.concat(streetSidePlots(BRANCH_EAST, { ...P, margin: 36, side: -1, streetId: "branch-east", idPrefix: "east-t" }));
+    plots = plots.concat(streetSidePlots(BRANCH_WEST, { ...P, margin: 36, side: 1, streetId: "branch-west", idPrefix: "west-b" }));
+    plots = plots.concat(streetSidePlots(BRANCH_WEST, { ...P, margin: 36, side: -1, streetId: "branch-west", idPrefix: "west-t" }));
+    plots = plots.concat(streetSidePlots(BRANCH_SW, { ...P, side: 1, streetId: "branch-sw", idPrefix: "sw-b" }));
+    plots = plots.concat(streetSidePlots(BRANCH_SW, { ...P, side: -1, streetId: "branch-sw", idPrefix: "sw-t" }));
 
     plots.forEach((p) => {
       p.landUse = null;
@@ -241,7 +208,7 @@ window.gameData = (function () {
     return plots;
   }
 
-  const PARK_CENTER_POLYGON = arcPolyline(RING_CENTER, 62, 0, 360, 40);
+  const PARK_CENTER_POLYGON = arcPolyline(PARK_CENTER, PARK_RADIUS, 0, 360, 40);
 
   // ---------- מקרא ----------
   const BASE_LAND_USES = [
