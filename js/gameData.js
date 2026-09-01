@@ -18,13 +18,13 @@ window.gameData = (function () {
   }
 
   // מכווץ פוליגון קמור (סדר נקודות עקבי) פנימה, מרחק שונה לכל צלע (distances[i] לצלע points[i]->points[i+1])
-  function insetPolygon(points, distances) {
+  function insetPolygonSigned(points, distances, sign) {
     const n = points.length;
     const edges = [];
     for (let i = 0; i < n; i++) {
       const a = points[i], b = points[(i + 1) % n];
       const dir = norm(sub(b, a));
-      const inward = pt(dir.y, -dir.x); // סימן נקבע אמפירית לפי סדר הנקודות שבו אנו מייצרים מגרשים
+      const inward = pt(dir.y * sign, -dir.x * sign);
       const offsetA = add(a, scale(inward, distances[i]));
       edges.push({ point: offsetA, dir });
     }
@@ -35,6 +35,19 @@ window.gameData = (function () {
       newPts.push(lineIntersect(e1.point, e1.dir, e2.point, e2.dir));
     }
     return newPts;
+  }
+
+  // כיוון "פנימה" תלוי בכיוון ההיקוף (CW/CCW) של הפוליגון, שמשתנה בין מגרשים שנוצרו אלגוריתמית
+  // (הכיוון קבוע) לבין מגרשים שחולצו מ-DXF אמיתי (הכיוון לא מובטח). פותרים בלי להניח כיוון:
+  // מנסים את שני הכיוונים ובוחרים את זה שבאמת מכווץ את הפוליגון (שטח קטן יותר מהמקור).
+  function insetPolygon(points, distances) {
+    const original = Math.abs(polygonArea(points));
+    const optionA = insetPolygonSigned(points, distances, 1);
+    const optionB = insetPolygonSigned(points, distances, -1);
+    const areaA = Math.abs(polygonArea(optionA));
+    const areaB = Math.abs(polygonArea(optionB));
+    if (areaA <= original && (areaA <= areaB || areaB > original)) return optionA;
+    return optionB;
   }
 
   function polygonArea(points) {
@@ -105,7 +118,7 @@ window.gameData = (function () {
       const p1 = add(center, pt(rInner * Math.cos(t1), rInner * Math.sin(t1)));
       const p2 = add(center, pt(rOuter * Math.cos(t1), rOuter * Math.sin(t1)));
       const p3 = add(center, pt(rOuter * Math.cos(t0), rOuter * Math.sin(t0)));
-      plots.push({ id: `${idPrefix}${i}`, points: [p0, p1, p2, p3], streetIds: [streetId] });
+      plots.push({ id: `${idPrefix}${i}`, points: [p0, p1, p2, p3], streetIds: [streetId], frontEdge: 0 });
     }
     return plots;
   }
@@ -118,7 +131,7 @@ window.gameData = (function () {
       const p1 = add(base, scale(alongDir, width));
       const p2 = add(p1, scale(perpDir, depth * side));
       const p3 = add(p0, scale(perpDir, depth * side));
-      plots.push({ id: `${idPrefix}${i}`, points: [p0, p1, p2, p3], streetIds: [streetId] });
+      plots.push({ id: `${idPrefix}${i}`, points: [p0, p1, p2, p3], streetIds: [streetId], frontEdge: 0 });
     }
     return plots;
   }
@@ -147,6 +160,12 @@ window.gameData = (function () {
       id: "greenway-1",
       type: "greenway",
       points: [pt(RING_CENTER.x + 15, RING_CENTER.y + 55), pt(700, 340), pt(730, 430), pt(760, 530)],
+    },
+    {
+      // מקטע מגרשים אמיתי, מחולץ מתשריט אליכין 457-1194877 (לא שכפול מלא, קבוצת מגרשים אחת)
+      id: "real-street-1",
+      type: "secondary",
+      points: [pt(412, 90), pt(378, 168), pt(362, 232), pt(300, 322), pt(278, 340), pt(200, 330), pt(38, 418)],
     },
   ];
 
@@ -196,6 +215,24 @@ window.gameData = (function () {
       rowPlots({ start: add(s2a, scale(dirS2, 6)), alongDir: dirS2, perpDir: perpS2, count: 3, width: 48, depth: 55, streetId: "secondary-2", idPrefix: "sec2-r", side: 1 }),
     );
 
+    // מקבץ מגרשים אמיתי - חולץ מתשריט אליכין (12 מגרשים, צורות וגדלים אמיתיים לא סכמטיים).
+    // אין להם צלע-חזית מוגדרת (frontEdge) ולכן קו הבניין שלהם אחיד בכל הצדדים, לא א-סימטרי.
+    const REAL_PLOTS = [
+      { id: "real-0", points: [pt(380.5, 130.8), pt(370.2, 184.1), pt(314.8, 173.4), pt(325.1, 120.1)] },
+      { id: "real-1", points: [pt(363.1, 229.0), pt(306.2, 218.1), pt(314.8, 173.4), pt(370.2, 184.1)] },
+      { id: "real-2", points: [pt(302.9, 235.3), pt(358.9, 246.0), pt(357.7, 249.3), pt(349.8, 290.6), pt(294.2, 279.9)] },
+      { id: "real-3", points: [pt(288.7, 308.9), pt(294.2, 279.9), pt(349.8, 290.6), pt(344.3, 319.3)] },
+      { id: "real-4", points: [pt(128.2, 285.8), pt(256.2, 310.4), pt(254.4, 318.5), pt(126.5, 294.6)] },
+      { id: "real-5", points: [pt(256.4, 310.4), pt(257.9, 303.1), pt(288.7, 308.9), pt(285.7, 324.3), pt(254.4, 318.5), pt(256.2, 310.4)] },
+      { id: "real-6", points: [pt(343.4, 323.9), pt(342.2, 334.9), pt(285.7, 324.3), pt(288.7, 308.9), pt(344.3, 319.3)] },
+      { id: "real-7", points: [pt(126.5, 294.6), pt(120.5, 326.0), pt(112.1, 371.0), pt(107.6, 394.2), pt(74.1, 387.7), pt(93.6, 288.5)] },
+      { id: "real-8", points: [pt(74.1, 387.7), pt(74.0, 387.7), pt(60.1, 385.1), pt(79.6, 286.2), pt(93.6, 288.5)] },
+      { id: "real-9", points: [pt(120.5, 326.0), pt(181.9, 337.8), pt(173.3, 382.9), pt(112.1, 371.0)] },
+      { id: "real-10", points: [pt(240.6, 384.2), pt(196.9, 387.5), pt(173.3, 382.9), pt(181.9, 337.8), pt(247.1, 350.4)] },
+      { id: "real-11", points: [pt(196.9, 387.5), pt(107.6, 394.2), pt(112.1, 371.0), pt(173.3, 382.9)] },
+    ].map((p) => ({ ...p, streetIds: ["real-street-1"] }));
+    plots = plots.concat(REAL_PLOTS);
+
     plots.forEach((p) => {
       p.landUse = null;
       p.buildingLine = null;
@@ -241,11 +278,23 @@ window.gameData = (function () {
     return override || base;
   }
 
-  function buildingFootprint(plot, streetOverrides) {
+  function buildingFootprint(plot) {
     if (!plot.landUse || !plot.buildingLine) return null;
     const preset = BUILDING_LINE_PRESETS[plot.buildingLine];
-    // סדר: [front, right, back, left] - הצלע הקדמית (0) פונה לרחוב
-    const distances = [preset.insetFront, preset.insetSide, preset.insetBack, preset.insetSide];
+    const n = plot.points.length;
+    // מגרשים עם frontEdge מוגדר (טרפזי כיכר/שורות מלבניות) מקבלים נסיגה א-סימטרית:
+    // הצלע הקדמית פונה לרחוב, הנגדית לאחור, השאר צדדים. מגרשים אמיתיים ללא frontEdge
+    // (חולצו מתשריט אמיתי, לאו דווקא ריבוע) מקבלים נסיגה אחידה בכל הצלעות.
+    let distances;
+    if (typeof plot.frontEdge === "number" && n === 4) {
+      distances = [0, 0, 0, 0];
+      distances[plot.frontEdge] = preset.insetFront;
+      distances[(plot.frontEdge + 1) % 4] = preset.insetSide;
+      distances[(plot.frontEdge + 2) % 4] = preset.insetBack;
+      distances[(plot.frontEdge + 3) % 4] = preset.insetSide;
+    } else {
+      distances = new Array(n).fill(preset.insetSide);
+    }
     return insetPolygon(plot.points, distances);
   }
 
@@ -307,8 +356,8 @@ window.gameData = (function () {
               const streetDef = STREET_TYPES.find((t) => t.key === type);
               if (!streetDef.vehicular) return false;
               const street = STREETS.find((s) => s.id === sid);
-              const frontMid = polygonMidpoint(p.points[0], p.points[1]);
-              return pointToPolylineDist(frontMid, street.points) < STREET_ACCESS_THRESHOLD;
+              const minDist = Math.min(...p.points.map((pt) => pointToPolylineDist(pt, street.points)));
+              return minDist < STREET_ACCESS_THRESHOLD;
             });
             if (!hasVehicleAccess) violating.push(p.id);
           });
