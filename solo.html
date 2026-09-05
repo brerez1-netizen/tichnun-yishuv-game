@@ -71,6 +71,11 @@
   .result-title { font-weight: 900; margin-bottom: 2px; }
   .result-msg { font-size: 0.9rem; color: #e8dcca; }
   .insights-title { font-weight: 900; margin: 18px 0 10px; font-size: 0.95rem; color: #d8c0a8; }
+  .plan-status { margin: 14px 0 0; font-size: 0.88rem; line-height: 1.5; }
+  .plan-status:empty { display: none; }
+  .plan-status.saved { color: #9ed4a8; }
+  .plan-status.local { color: #e0c078; }
+  .plan-status.pending { color: #b9ab97; }
 
   .empty-note { color: #d8c0a8; font-size: 0.85rem; text-align: center; margin: 0; }
 </style>
@@ -361,8 +366,85 @@ function checkPlan() {
         <div><div class="result-title">${rule.title}</div><div class="result-msg">${r.message}</div></div>
       </div>`;
     }).join('');
+  const allOk = results.every((r) => r.ok);
+  panel.insertAdjacentHTML('beforeend', '<p id="planStatus" class="plan-status"></p>');
+  pushPlanToSite(allOk);
+  renderPlanStatus();
+
   panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
+
+
+/* ---------- גשר לאתר: שמירת התב"ע בין השיעורים ----------
+   התכנון הזה חוזר בשיעור 8, כשמגיעות בקשות להיתר מול התב"ע שהסטודנט קבע
+   כאן. localStorage לבדו לא שורד את ששת השבועות שביניהם (המשחק רץ ב-iframe
+   מדומיין אחר, האחסון מחולק לפי אתר-אב, וספארי מפנה אותו אחרי שבוע), ולכן
+   כשהמשחק משובץ בעמוד השיעור הוא מוסר את התכנון לאתר, שמאחסן אותו תחת
+   הסטודנט המחובר. מחוץ לאתר, או בלי התחברות, הכל ממשיך לעבוד מקומית. */
+const embedded = window.parent !== window;
+let planSaveState = null;
+
+function planPayload(passedCheck) {
+  const plotsData = {};
+  plots.forEach((p) => { plotsData[p.id] = { landUse: p.landUse, buildingLine: p.buildingLine }; });
+  return { plots: plotsData, passedCheck };
+}
+
+let planSaveTimer = null;
+
+function pushPlanToSite(passedCheck) {
+  if (!embedded) return;
+  planSaveState = 'pending';
+  renderPlanStatus();
+  window.parent.postMessage({ type: 'tichnun-plan-save', plan: planPayload(passedCheck) }, '*');
+  /* אם האתר לא עונה (גרסה ישנה של העמוד, תקלת רשת, או משחק שמוטמע במקום
+     אחר) לא נשארים תקועים על "שומר" - נופלים לשמירה המקומית. */
+  clearTimeout(planSaveTimer);
+  planSaveTimer = setTimeout(() => {
+    if (planSaveState === 'pending') { planSaveState = 'local'; renderPlanStatus(); }
+  }, 2500);
+}
+
+function renderPlanStatus() {
+  const el = document.getElementById('planStatus');
+  if (!el) return;
+  if (planSaveState === 'saved') {
+    el.textContent = 'התכנון נשמר לפרופיל שלך. הוא יחכה לך בשיעור 8, כשתצטרך לאשר בקשות להיתר מולו.';
+    el.className = 'plan-status saved';
+  } else if (planSaveState === 'local') {
+    el.textContent = 'התכנון נשמר במכשיר הזה בלבד. כדי שהוא ילווה אותך לשיעור 8, היכנסו לאתר הקורס ושחקו משם.';
+    el.className = 'plan-status local';
+  } else if (planSaveState === 'pending') {
+    el.textContent = 'שומר את התכנון...';
+    el.className = 'plan-status pending';
+  } else {
+    el.className = 'plan-status';
+    el.textContent = '';
+  }
+}
+
+window.addEventListener('message', (event) => {
+  const d = event.data;
+  if (!d || typeof d !== 'object') return;
+  if (d.type === 'tichnun-plan-saved') {
+    clearTimeout(planSaveTimer);
+    planSaveState = d.saved ? 'saved' : 'local';
+    renderPlanStatus();
+  }
+  /* התכנון חוזר מהאתר: זה קורה כשהסטודנט פותח את המשחק ממכשיר אחר, או
+     אחרי שניקה את הדפדפן. מה שבשרת גובר על מה שמקומי. */
+  if (d.type === 'tichnun-plan' && d.plan && d.plan.plots) {
+    plots.forEach((p) => {
+      const saved = d.plan.plots[p.id];
+      if (saved) { p.landUse = saved.landUse; p.buildingLine = saved.buildingLine; }
+    });
+    save();
+    renderBoard();
+    renderDetailPanel();
+  }
+});
+
+if (embedded) window.parent.postMessage({ type: 'tichnun-plan-request' }, '*');
 
 loadSaved();
 renderLegend();
