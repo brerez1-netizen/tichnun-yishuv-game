@@ -436,8 +436,10 @@ window.addEventListener('message', (event) => {
      אחרי שניקה את הדפדפן. מה שבשרת גובר על מה שמקומי. */
   if (d.type === 'tichnun-plan') {
     planAnswered = true;
+    if (planApplied) return;
   }
   if (d.type === 'tichnun-plan' && d.plan && d.plan.plots) {
+    planApplied = true;
     plots.forEach((p) => {
       const saved = d.plan.plots[p.id];
       if (saved) { p.landUse = saved.landUse; p.buildingLine = saved.buildingLine; }
@@ -452,6 +454,7 @@ window.addEventListener('message', (event) => {
    לפני שההאזנה בצד האתר נרשמה, ולכן הבקשה יוצאת גם מיד (למקרה שהאתר כבר
    האזין) וגם בתגובה להודעת המוכנות. */
 let planAnswered = false;
+let planApplied = false;
 function requestPlanFromSite() {
   if (!embedded || planAnswered) return;
   window.parent.postMessage({ type: 'tichnun-plan-request' }, '*');
