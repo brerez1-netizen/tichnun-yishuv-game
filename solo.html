@@ -426,6 +426,7 @@ function renderPlanStatus() {
 window.addEventListener('message', (event) => {
   const d = event.data;
   if (!d || typeof d !== 'object') return;
+  if (d.type === 'tichnun-bridge-ready') { requestPlanFromSite(); return; }
   if (d.type === 'tichnun-plan-saved') {
     clearTimeout(planSaveTimer);
     planSaveState = d.saved ? 'saved' : 'local';
@@ -444,7 +445,16 @@ window.addEventListener('message', (event) => {
   }
 });
 
-if (embedded) window.parent.postMessage({ type: 'tichnun-plan-request' }, '*');
+/* האתר מודיע כשהוא מוכן לקבל הודעות. המשחק נטען בתוך iframe ויכול לעלות
+   לפני שההאזנה בצד האתר נרשמה, ולכן הבקשה יוצאת גם מיד (למקרה שהאתר כבר
+   האזין) וגם בתגובה להודעת המוכנות. */
+let planRequested = false;
+function requestPlanFromSite() {
+  if (!embedded || planRequested) return;
+  planRequested = true;
+  window.parent.postMessage({ type: 'tichnun-plan-request' }, '*');
+}
+if (embedded) requestPlanFromSite();
 
 loadSaved();
 renderLegend();
