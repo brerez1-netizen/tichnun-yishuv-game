@@ -434,6 +434,9 @@ window.addEventListener('message', (event) => {
   }
   /* התכנון חוזר מהאתר: זה קורה כשהסטודנט פותח את המשחק ממכשיר אחר, או
      אחרי שניקה את הדפדפן. מה שבשרת גובר על מה שמקומי. */
+  if (d.type === 'tichnun-plan') {
+    planAnswered = true;
+  }
   if (d.type === 'tichnun-plan' && d.plan && d.plan.plots) {
     plots.forEach((p) => {
       const saved = d.plan.plots[p.id];
@@ -448,13 +451,18 @@ window.addEventListener('message', (event) => {
 /* האתר מודיע כשהוא מוכן לקבל הודעות. המשחק נטען בתוך iframe ויכול לעלות
    לפני שההאזנה בצד האתר נרשמה, ולכן הבקשה יוצאת גם מיד (למקרה שהאתר כבר
    האזין) וגם בתגובה להודעת המוכנות. */
-let planRequested = false;
+let planAnswered = false;
 function requestPlanFromSite() {
-  if (!embedded || planRequested) return;
-  planRequested = true;
+  if (!embedded || planAnswered) return;
   window.parent.postMessage({ type: 'tichnun-plan-request' }, '*');
 }
-if (embedded) requestPlanFromSite();
+/* עמוד השיעור מרנדר בשרת ורק אחר כך מתחבר בדפדפן, ולפעמים ה-iframe הזה
+   מספיק לעלות לפני שההאזנה בצד האתר נרשמה. בקשה בודדת בטעינה נופלת אז
+   לרצפה, ולכן שואלים כמה פעמים עד שמקבלים תשובה. */
+if (embedded) {
+  requestPlanFromSite();
+  [400, 1200, 2500, 5000].forEach((ms) => setTimeout(requestPlanFromSite, ms));
+}
 
 loadSaved();
 renderLegend();
